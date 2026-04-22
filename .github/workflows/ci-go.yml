@@ -28,6 +28,7 @@ jobs:
       - name: Lint (golangci-lint)
         uses: golangci/golangci-lint-action@v4
         with:
+          version: v1.60.3
           working-directory: services/${{ env.SERVICE }}
 
       - name: Unit Tests
