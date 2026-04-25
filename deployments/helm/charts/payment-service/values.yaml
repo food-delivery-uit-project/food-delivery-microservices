@@ -1,14 +1,14 @@
 image:
   repository: acrfooddelivery.azurecr.io/payment-service
-  tag: latest
+  tag: f4342c39e78f009dabfbec3d194af8abbce0f84e
   pullPolicy: IfNotPresent
 replicaCount: 1
 service:
   type: ClusterIP
   port: 8080
 resources:
-  requests: { cpu: 200m, memory: 256Mi }
-  limits: { cpu: 500m, memory: 512Mi }
+  requests: {cpu: 200m, memory: 256Mi}
+  limits: {cpu: 500m, memory: 512Mi}
 env:
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql.databases.svc:5432/payment_db
   SPRING_DATASOURCE_USERNAME: postgres
@@ -16,21 +16,10 @@ env:
   PAYMENT_GATEWAY_MODE: mock
   OTEL_SERVICE_NAME: payment-service
 secretEnv:
-  SPRING_DATASOURCE_PASSWORD:
-    { secretName: db-credentials, key: POSTGRES_PASSWORD }
+  SPRING_DATASOURCE_PASSWORD: {secretName: db-credentials, key: POSTGRES_PASSWORD}
 probes:
-  liveness:
-    {
-      path: /actuator/health/liveness,
-      initialDelaySeconds: 30,
-      periodSeconds: 10,
-    }
-  readiness:
-    {
-      path: /actuator/health/readiness,
-      initialDelaySeconds: 20,
-      periodSeconds: 5,
-    }
+  liveness: {path: /actuator/health/liveness, initialDelaySeconds: 30, periodSeconds: 10}
+  readiness: {path: /actuator/health/readiness, initialDelaySeconds: 20, periodSeconds: 5}
 ingress:
   enabled: true
   className: kong

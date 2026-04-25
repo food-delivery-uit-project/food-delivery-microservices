@@ -1,14 +1,11 @@
 image:
   repository: acrfooddelivery.azurecr.io/order-service
-  tag: latest
+  tag: f4342c39e78f009dabfbec3d194af8abbce0f84e
   pullPolicy: IfNotPresent
-
 replicaCount: 1
-
 service:
   type: ClusterIP
   port: 8080
-
 resources:
   requests:
     cpu: 300m
@@ -16,7 +13,6 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-
 env:
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql.databases.svc:5432/order_db
   SPRING_DATASOURCE_USERNAME: postgres
@@ -25,12 +21,10 @@ env:
   USER_SERVICE_URL: http://user-service.food-app.svc:8080
   OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger-collector.observability.svc:4317
   OTEL_SERVICE_NAME: order-service
-
 secretEnv:
   SPRING_DATASOURCE_PASSWORD:
     secretName: db-credentials
     key: POSTGRES_PASSWORD
-
 probes:
   liveness:
     path: /actuator/health/liveness
@@ -40,7 +34,6 @@ probes:
     path: /actuator/health/readiness
     initialDelaySeconds: 20
     periodSeconds: 5
-
 ingress:
   enabled: true
   className: kong
