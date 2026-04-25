@@ -1,22 +1,22 @@
 image:
   repository: acrfooddelivery.azurecr.io/notification-service
-  tag: latest
+  tag: 4b2090140c7e4a50a984f2d705b544b01d8087a2
   pullPolicy: IfNotPresent
 replicaCount: 1
 service:
   type: ClusterIP
   port: 8080
 resources:
-  requests: { cpu: 200m, memory: 64Mi }
-  limits: { cpu: 500m, memory: 128Mi }
+  requests: {cpu: 200m, memory: 64Mi}
+  limits: {cpu: 500m, memory: 128Mi}
 env:
   PORT: "8080"
   KAFKA_BROKERS: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092
   REDIS_URL: redis://redis-master.databases.svc:6379
   OTEL_SERVICE_NAME: notification-service
 probes:
-  liveness: { path: /health/live, initialDelaySeconds: 5, periodSeconds: 10 }
-  readiness: { path: /health/ready, initialDelaySeconds: 5, periodSeconds: 5 }
+  liveness: {path: /health/live, initialDelaySeconds: 5, periodSeconds: 10}
+  readiness: {path: /health/ready, initialDelaySeconds: 5, periodSeconds: 5}
 ingress:
   enabled: true
   className: kong
