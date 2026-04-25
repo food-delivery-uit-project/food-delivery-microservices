@@ -2,6 +2,7 @@ name: CI - Java Services
 on:
   pull_request:
     paths:
+      - ".github/workflows/ci-java.yml"
       - "services/user-service/**"
       - "services/restaurant-service/**"
       - "services/order-service/**"
@@ -9,6 +10,7 @@ on:
   push:
     branches: [main]
     paths:
+      - ".github/workflows/ci-java.yml"
       - "services/user-service/**"
       - "services/restaurant-service/**"
       - "services/order-service/**"
@@ -34,12 +36,16 @@ jobs:
           filters: |
             user-service:
               - 'services/user-service/**'
+              - '.github/workflows/ci-java.yml'
             restaurant-service:
               - 'services/restaurant-service/**'
+              - '.github/workflows/ci-java.yml'
             order-service:
               - 'services/order-service/**'
+              - '.github/workflows/ci-java.yml'
             payment-service:
               - 'services/payment-service/**'
+              - '.github/workflows/ci-java.yml'
 
   build-test:
     needs: detect-changes

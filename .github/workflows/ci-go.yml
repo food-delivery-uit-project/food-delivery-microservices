@@ -2,10 +2,12 @@ name: CI - Go Services
 on:
   pull_request:
     paths:
+      - ".github/workflows/ci-go.yml"
       - "services/dispatch-service/**"
   push:
     branches: [main]
     paths:
+      - ".github/workflows/ci-go.yml"
       - "services/dispatch-service/**"
 
 permissions:

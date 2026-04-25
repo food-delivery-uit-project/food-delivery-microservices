@@ -2,10 +2,12 @@ name: CI - Node.js Services
 on:
   pull_request:
     paths:
+      - ".github/workflows/ci-node.yml"
       - "services/notification-service/**"
   push:
     branches: [main]
     paths:
+      - ".github/workflows/ci-node.yml"
       - "services/notification-service/**"
 
 permissions:
