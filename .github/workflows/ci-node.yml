@@ -2,14 +2,17 @@ name: CI - Node.js Services
 on:
   pull_request:
     paths:
-      - 'services/notification-service/**'
+      - "services/notification-service/**"
   push:
     branches: [main]
     paths:
-      - 'services/notification-service/**'
+      - "services/notification-service/**"
+
+permissions:
+  contents: write
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
   REGISTRY: acrfooddelivery.azurecr.io
   SERVICE: notification-service
 
@@ -23,7 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: services/${{ env.SERVICE }}/package-lock.json
 
       - name: Install Dependencies
@@ -50,9 +53,9 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.SERVICE }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
 
       - name: Push to ACR
         if: github.ref == 'refs/heads/main'
@@ -68,6 +71,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
       - name: Update Helm values
         run: yq e ".image.tag = \"${{ github.sha }}\"" -i deployments/helm/charts/${{ env.SERVICE }}/values.yaml
       - name: Commit and push

@@ -45,9 +45,9 @@ kubectl exec -it <service-pod> -n food-app -- sh
 
 ```bash
 # Check consumer group lag
-kubectl exec -it kafka-0 -n kafka -- \
+kubectl exec food-delivery-kafka-kafka-0 -n kafka -- \
   kafka-consumer-groups.sh \
-  --bootstrap-server localhost:9092 \
+  --bootstrap-server food-delivery-kafka-kafka-bootstrap:9092 \
   --group order-service-group \
   --describe
 

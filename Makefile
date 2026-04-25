@@ -3,7 +3,7 @@
 # Top-level commands for development, testing, and deployment
 # ============================================================================
 
-.PHONY: help dev test lint logs local-setup local-down seed health-check
+.PHONY: help dev test test-all lint lint-all logs local-setup local-down seed health-check helm-lint verify-setup
 
 # Default target
 help: ## Show this help message
@@ -34,19 +34,26 @@ test: ## Run tests for a service (usage: make test svc=order-service)
 	@if [ -z "$(svc)" ]; then echo "Usage: make test svc=<service-name>"; exit 1; fi
 	@echo "Running tests for $(svc)..."
 	@if [ -f "services/$(svc)/pom.xml" ]; then \
-		cd services/$(svc) && mvn test; \
+		cd services/$(svc) && chmod +x mvnw && ./mvnw test; \
 	elif [ -f "services/$(svc)/go.mod" ]; then \
 		cd services/$(svc) && go test ./...; \
 	elif [ -f "services/$(svc)/package.json" ]; then \
 		cd services/$(svc) && npm test; \
+	else \
+		echo "No supported test configuration for $(svc)"; exit 1; \
 	fi
 
 test-all: ## Run tests for all services
-	@for dir in services/*/; do \
+	@failed=0; \
+	for dir in services/*/; do \
 		svc=$$(basename $$dir); \
 		echo "\n=== Testing $$svc ==="; \
-		$(MAKE) test svc=$$svc || true; \
-	done
+		$(MAKE) test svc=$$svc || failed=1; \
+	done; \
+	if [ $$failed -ne 0 ]; then \
+		echo "\nOne or more services failed tests."; \
+		exit 1; \
+	fi
 
 # ============================================================================
 # Linting
@@ -56,11 +63,25 @@ lint: ## Lint a service (usage: make lint svc=order-service)
 	@if [ -z "$(svc)" ]; then echo "Usage: make lint svc=<service-name>"; exit 1; fi
 	@echo "Linting $(svc)..."
 	@if [ -f "services/$(svc)/pom.xml" ]; then \
-		cd services/$(svc) && mvn checkstyle:check; \
+		cd services/$(svc) && chmod +x mvnw && ./mvnw checkstyle:check; \
 	elif [ -f "services/$(svc)/go.mod" ]; then \
-		cd services/$(svc) && golangci-lint run; \
+		cd services/$(svc) && docker run --rm -v "$$(pwd):/app" -w /app golangci/golangci-lint:v1.60.3 golangci-lint run; \
 	elif [ -f "services/$(svc)/package.json" ]; then \
 		cd services/$(svc) && npm run lint; \
+	else \
+		echo "No supported lint configuration for $(svc)"; exit 1; \
+	fi
+
+lint-all: ## Run lint for all services
+	@failed=0; \
+	for dir in services/*/; do \
+		svc=$$(basename $$dir); \
+		echo "\n=== Linting $$svc ==="; \
+		$(MAKE) lint svc=$$svc || failed=1; \
+	done; \
+	if [ $$failed -ne 0 ]; then \
+		echo "\nOne or more services failed lint checks."; \
+		exit 1; \
 	fi
 
 # ============================================================================
@@ -90,10 +111,22 @@ build: ## Build Docker image for a service (usage: make build svc=order-service)
 # ============================================================================
 
 helm-lint: ## Lint all Helm charts
-	@for chart in deployments/helm/charts/*/; do \
+	@failed=0; \
+	for chart in deployments/helm/charts/*/; do \
 		echo "Linting $$chart..."; \
-		helm lint $$chart || true; \
-	done
+		helm lint $$chart || failed=1; \
+	done; \
+	if [ $$failed -ne 0 ]; then \
+		echo "\nOne or more Helm charts failed lint checks."; \
+		exit 1; \
+	fi
+
+verify-setup: ## Run setup readiness checks (tests, lint, Helm charts)
+	@echo "Running setup verification checks..."
+	@$(MAKE) test-all
+	@$(MAKE) lint-all
+	@$(MAKE) helm-lint
+	@echo "\nSetup verification completed successfully."
 
 deploy-infra: ## Deploy infrastructure (Kafka, PostgreSQL, Redis) to K8s
 	helm upgrade --install postgresql bitnami/postgresql -n databases --create-namespace -f deployments/infrastructure/postgresql/values.yaml

@@ -37,12 +37,16 @@ func main() {
 	// Health check endpoints
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"UP"}`))
+		if _, err := w.Write([]byte(`{"status":"UP"}`)); err != nil {
+			slog.Error("failed to write liveness response", "error", err)
+		}
 	})
 	mux.HandleFunc("GET /health/ready", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: check Redis connectivity
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"READY"}`))
+		if _, err := w.Write([]byte(`{"status":"READY"}`)); err != nil {
+			slog.Error("failed to write readiness response", "error", err)
+		}
 	})
 
 	// Start server with graceful shutdown

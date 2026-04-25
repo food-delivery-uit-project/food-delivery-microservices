@@ -12,11 +12,29 @@ resources:
 env:
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql.databases.svc:5432/payment_db
   SPRING_DATASOURCE_USERNAME: postgres
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-0.kafka.svc:9092
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092
   PAYMENT_GATEWAY_MODE: mock
   OTEL_SERVICE_NAME: payment-service
 secretEnv:
-  SPRING_DATASOURCE_PASSWORD: { secretName: db-credentials, key: POSTGRES_PASSWORD }
+  SPRING_DATASOURCE_PASSWORD:
+    { secretName: db-credentials, key: POSTGRES_PASSWORD }
 probes:
-  liveness: { path: /health/live, initialDelaySeconds: 30, periodSeconds: 10 }
-  readiness: { path: /health/ready, initialDelaySeconds: 20, periodSeconds: 5 }
+  liveness:
+    {
+      path: /actuator/health/liveness,
+      initialDelaySeconds: 30,
+      periodSeconds: 10,
+    }
+  readiness:
+    {
+      path: /actuator/health/readiness,
+      initialDelaySeconds: 20,
+      periodSeconds: 5,
+    }
+ingress:
+  enabled: true
+  className: kong
+  annotations: {}
+  paths:
+    - path: /api/v1/payments
+      pathType: Prefix

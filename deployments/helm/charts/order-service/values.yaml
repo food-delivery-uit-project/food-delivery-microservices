@@ -20,7 +20,7 @@ resources:
 env:
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql.databases.svc:5432/order_db
   SPRING_DATASOURCE_USERNAME: postgres
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-0.kafka.svc:9092
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092
   RESTAURANT_SERVICE_URL: http://restaurant-service.food-app.svc:8080
   USER_SERVICE_URL: http://user-service.food-app.svc:8080
   OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger-collector.observability.svc:4317
@@ -33,10 +33,18 @@ secretEnv:
 
 probes:
   liveness:
-    path: /health/live
+    path: /actuator/health/liveness
     initialDelaySeconds: 30
     periodSeconds: 10
   readiness:
-    path: /health/ready
+    path: /actuator/health/readiness
     initialDelaySeconds: 20
     periodSeconds: 5
+
+ingress:
+  enabled: true
+  className: kong
+  annotations: {}
+  paths:
+    - path: /api/v1/orders
+      pathType: Prefix

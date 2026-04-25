@@ -1,7 +1,7 @@
 package com.fooddelivery.order.exception;
 
-import com.fooddelivery.order.common.ApiResponse;
-import com.fooddelivery.order.common.ApiResponse.FieldError;
+import com.fooddelivery.order.adapter.inbound.rest.ApiResponse;
+import com.fooddelivery.order.adapter.inbound.rest.ApiResponse.FieldError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

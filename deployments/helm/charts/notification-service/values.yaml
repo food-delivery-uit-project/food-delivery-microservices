@@ -11,9 +11,16 @@ resources:
   limits: { cpu: 500m, memory: 128Mi }
 env:
   PORT: "8080"
-  KAFKA_BROKERS: kafka-0.kafka.svc:9092
+  KAFKA_BROKERS: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092
   REDIS_URL: redis://redis-master.databases.svc:6379
   OTEL_SERVICE_NAME: notification-service
 probes:
   liveness: { path: /health/live, initialDelaySeconds: 5, periodSeconds: 10 }
   readiness: { path: /health/ready, initialDelaySeconds: 5, periodSeconds: 5 }
+ingress:
+  enabled: true
+  className: kong
+  annotations: {}
+  paths:
+    - path: /api/v1/notifications
+      pathType: Prefix

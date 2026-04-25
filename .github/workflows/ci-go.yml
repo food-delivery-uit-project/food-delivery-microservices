@@ -2,14 +2,17 @@ name: CI - Go Services
 on:
   pull_request:
     paths:
-      - 'services/dispatch-service/**'
+      - "services/dispatch-service/**"
   push:
     branches: [main]
     paths:
-      - 'services/dispatch-service/**'
+      - "services/dispatch-service/**"
+
+permissions:
+  contents: write
 
 env:
-  GO_VERSION: '1.22'
+  GO_VERSION: "1.22"
   REGISTRY: acrfooddelivery.azurecr.io
   SERVICE: dispatch-service
 
@@ -50,9 +53,9 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.SERVICE }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
 
       - name: Push to ACR
         if: github.ref == 'refs/heads/main'
@@ -68,6 +71,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
       - name: Update Helm values
         run: yq e ".image.tag = \"${{ github.sha }}\"" -i deployments/helm/charts/${{ env.SERVICE }}/values.yaml
       - name: Commit and push

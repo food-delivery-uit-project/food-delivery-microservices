@@ -2,11 +2,11 @@
 
 ## 1. Environments
 
-| Environment | Cluster | Purpose | Deploy Method |
-|------------|---------|---------|---------------|
-| **Local** | Kind (Docker) | Development | `make local-setup` + Skaffold |
-| **Dev/Staging** | Azure AKS | Integration testing | ArgoCD (auto-sync) |
-| **Production** | Azure AKS | Live system | ArgoCD (manual sync) |
+| Environment     | Cluster       | Purpose             | Deploy Method                 |
+| --------------- | ------------- | ------------------- | ----------------------------- |
+| **Local**       | Kind (Docker) | Development         | `make local-setup` + Skaffold |
+| **Dev/Staging** | Azure AKS     | Integration testing | ArgoCD (auto-sync)            |
+| **Production**  | Azure AKS     | Live system         | ArgoCD (manual sync)          |
 
 ## 2. Local Environment Setup
 
@@ -16,16 +16,12 @@ See [Developer Guide](../development/DEVELOPER_GUIDE.md) for local setup instruc
 
 ### Prerequisites
 
-- Azure CLI (`az`) installed and authenticated
-- Azure subscription with credits (Azure for Students: $100)
+-   Azure CLI (`az`) installed and authenticated
+-   Azure subscription with credits (Azure for Students: $100)
 
 ### Provision AKS Cluster
 
 ```bash
-# Run the setup script
-python3 scripts/azure_setup.py
-
-# Or manually:
 # 1. Create resource group
 az group create --name rg-food-delivery --location southeastasia
 
@@ -82,7 +78,7 @@ kubectl apply -f deployments/argocd/
 ### How It Works
 
 1. CI pipeline builds Docker image → pushes to ACR
-2. CI updates `image.tag` in `deployments/helm/values-{env}.yaml`
+2. CI updates `image.tag` in `deployments/helm/charts/<service>/values.yaml`
 3. ArgoCD detects Git change → syncs to AKS cluster
 4. Rolling update with zero downtime
 
@@ -103,9 +99,9 @@ argocd app sync food-delivery-prod
 
 ## 5. Deployment Strategy
 
-- **Rolling Update** (default): maxSurge=1, maxUnavailable=0
-- Zero downtime guaranteed
-- Automatic rollback if readiness probe fails
+-   **Rolling Update** (default): maxSurge=1, maxUnavailable=0
+-   Zero downtime guaranteed
+-   Automatic rollback if readiness probe fails
 
 ## 6. Secrets Management
 
@@ -113,7 +109,7 @@ argocd app sync food-delivery-prod
 # Create secrets for database credentials
 kubectl create secret generic db-credentials \
   --from-literal=POSTGRES_PASSWORD=<password> \
-  -n databases
+  -n food-app
 
 # Services reference via env vars in Helm values
 ```

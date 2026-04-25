@@ -10,4 +10,4 @@ global:
     host: redis-master.databases.svc
     port: 6379
   kafka:
-    bootstrapServers: kafka-0.kafka.svc:9092
+    bootstrapServers: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092

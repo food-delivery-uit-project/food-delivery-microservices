@@ -158,11 +158,24 @@ def create_databases() -> None:
     dbs = ["order_db", "restaurant_db", "payment_db"]
     for db in dbs:
         run(
-            f"kubectl exec -it postgresql-0 -n databases -- "
+            f"kubectl exec postgresql-0 -n databases -- "
             f"psql -U postgres -c \"CREATE DATABASE {db};\"",
             check=False,
         )
     print("✅ Databases created.")
+
+
+def create_application_secrets() -> None:
+    """Create required application secrets in the food-app namespace."""
+    print("\n🔐 Creating application secrets...")
+    run(
+        "kubectl create secret generic db-credentials "
+        "-n food-app "
+        "--from-literal=POSTGRES_PASSWORD=postgres "
+        "--dry-run=client -o yaml | kubectl apply -f -",
+        check=False,
+    )
+    print("✅ Application secrets ready.")
 
 
 def print_status() -> None:
@@ -204,6 +217,7 @@ def main() -> None:
         add_helm_repos()
         install_infrastructure()
         create_databases()
+        create_application_secrets()
         print_status()
     elif action == "teardown":
         teardown()

@@ -11,11 +11,11 @@
    ╱-------------------╲
 ```
 
-| Level | Target | Tools | Coverage Target |
-|-------|--------|-------|-----------------|
-| **Unit** | Domain logic, business rules, algorithms | JUnit 5 + Mockito (Java), go test (Go), Jest (Node) | **≥ 80%** cho domain/service layers |
-| **Integration** | DB queries, Kafka produce/consume, REST client calls | Testcontainers (real DB/Kafka in Docker) | Tất cả repository methods + Kafka consumers |
-| **E2E** | Full order flow qua nhiều services | Python script + HTTP calls | Happy path + 2 failure paths |
+| Level           | Target                                               | Tools                                               | Coverage Target                             |
+| --------------- | ---------------------------------------------------- | --------------------------------------------------- | ------------------------------------------- |
+| **Unit**        | Domain logic, business rules, algorithms             | JUnit 5 + Mockito (Java), go test (Go), Jest (Node) | **≥ 80%** cho domain/service layers         |
+| **Integration** | DB queries, Kafka produce/consume, REST client calls | Testcontainers (real DB/Kafka in Docker)            | Tất cả repository methods + Kafka consumers |
+| **E2E**         | Full order flow qua nhiều services                   | Python script + HTTP calls                          | Happy path + 2 failure paths                |
 
 ## 2. Unit Testing
 
@@ -108,27 +108,33 @@ func TestFindNearestDriver(t *testing.T) {
 
 ```typescript
 // kafka/handlers/order-events.test.ts
-describe('OrderEventHandler', () => {
-  it('should send SSE when OrderCreated received', async () => {
-    const mockSSEManager = { send: jest.fn() };
-    const handler = new OrderEventHandler(mockSSEManager);
+describe("OrderEventHandler", () => {
+    it("should send SSE when OrderCreated received", async () => {
+        const mockSSEManager = { send: jest.fn() };
+        const handler = new OrderEventHandler(mockSSEManager);
 
-    await handler.handle({
-      type: 'OrderCreated',
-      data: { order_id: 'ord-123', customer_id: 'usr-456' }
+        await handler.handle({
+            type: "OrderCreated",
+            data: { order_id: "ord-123", customer_id: "usr-456" },
+        });
+
+        expect(mockSSEManager.send).toHaveBeenCalledWith(
+            "ord-123",
+            expect.objectContaining({ status: "CREATED" })
+        );
     });
-
-    expect(mockSSEManager.send).toHaveBeenCalledWith(
-      'ord-123',
-      expect.objectContaining({ status: 'CREATED' })
-    );
-  });
 });
 ```
 
 ## 3. Integration Testing (Testcontainers)
 
 Mỗi service dùng Testcontainers để spin up real DB/Kafka trong Docker:
+
+Lưu ý quan trọng khi chạy local:
+
+-   Testcontainers yêu cầu Docker daemon đang chạy.
+-   Một số test Spring có thể in Kafka Admin warning/error log trong giai đoạn bootstrap topic.
+-   Kết luận pass/fail phải dựa vào tổng kết Maven/JUnit cuối cùng (`Failures: 0, Errors: 0`), không dựa vào một dòng warning lẻ.
 
 ### Java
 
@@ -188,7 +194,7 @@ make test svc=order-service
 make test-all
 
 # With coverage (Java)
-cd services/order-service && mvn test jacoco:report
+cd services/order-service && ./mvnw test jacoco:report
 
 # With coverage (Go)
 cd services/dispatch-service && go test -coverprofile=coverage.out ./...
@@ -199,9 +205,9 @@ cd services/notification-service && npm run test:coverage
 
 ## 5. CI Pipeline Test Requirements
 
-| Check | Threshold | Action on Fail |
-|-------|-----------|----------------|
-| Unit Tests | All pass | Block merge |
-| Integration Tests | All pass | Block merge |
-| Code Coverage (domain layer) | ≥ 80% | Warning (not blocking initially) |
-| Lint | Zero errors | Block merge |
+| Check                        | Threshold   | Action on Fail                   |
+| ---------------------------- | ----------- | -------------------------------- |
+| Unit Tests                   | All pass    | Block merge                      |
+| Integration Tests            | All pass    | Block merge                      |
+| Code Coverage (domain layer) | ≥ 80%       | Warning (not blocking initially) |
+| Lint                         | Zero errors | Block merge                      |

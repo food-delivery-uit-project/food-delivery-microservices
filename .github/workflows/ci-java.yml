@@ -2,20 +2,23 @@ name: CI - Java Services
 on:
   pull_request:
     paths:
-      - 'services/user-service/**'
-      - 'services/restaurant-service/**'
-      - 'services/order-service/**'
-      - 'services/payment-service/**'
+      - "services/user-service/**"
+      - "services/restaurant-service/**"
+      - "services/order-service/**"
+      - "services/payment-service/**"
   push:
     branches: [main]
     paths:
-      - 'services/user-service/**'
-      - 'services/restaurant-service/**'
-      - 'services/order-service/**'
-      - 'services/payment-service/**'
+      - "services/user-service/**"
+      - "services/restaurant-service/**"
+      - "services/order-service/**"
+      - "services/payment-service/**"
+
+permissions:
+  contents: write
 
 env:
-  JAVA_VERSION: '21'
+  JAVA_VERSION: "21"
   REGISTRY: acrfooddelivery.azurecr.io
 
 jobs:
@@ -43,28 +46,33 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [user-service, restaurant-service, order-service, payment-service]
+        service:
+          [user-service, restaurant-service, order-service, payment-service]
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: "temurin"
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
+          cache: "maven"
+
+      - name: Prepare Maven Wrapper
+        working-directory: services/${{ matrix.service }}
+        run: chmod +x mvnw
 
       - name: Lint (Checkstyle)
         working-directory: services/${{ matrix.service }}
-        run: mvn checkstyle:check -q
+        run: ./mvnw checkstyle:check -q
 
       - name: Unit Tests
         working-directory: services/${{ matrix.service }}
-        run: mvn test -q
+        run: ./mvnw test -q
 
-      - name: Integration Tests (Testcontainers)
+      - name: Verification (incl. integration tests)
         working-directory: services/${{ matrix.service }}
-        run: mvn verify -P integration-test -q
+        run: ./mvnw verify -q
 
       - name: Build Docker Image
         working-directory: services/${{ matrix.service }}
@@ -74,9 +82,9 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
 
       - name: Push to ACR
         if: github.ref == 'refs/heads/main'
@@ -92,6 +100,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
       - name: Update Helm values with new image tag
         run: |
           for svc in user-service restaurant-service order-service payment-service; do
