@@ -30,7 +30,7 @@ const kafkaConsumer = new KafkaConsumer(config.kafkaBrokers, sseManager, config.
 
 const start = async () => {
   try {
-    // Start Kafka consumer with retry on failure
+    // Attempt to connect Kafka consumer (best-effort; service runs without it)
     try {
       await kafkaConsumer.connect();
       app.log.info('Kafka consumer connected');

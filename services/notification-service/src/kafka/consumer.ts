@@ -79,9 +79,9 @@ export class KafkaConsumer {
         }
       }
     } catch (_err) {
-      // Log parse errors but don't crash the consumer
-      const err = _err instanceof Error ? _err.message : String(_err);
-      process.stderr.write(`Failed to process Kafka message from ${topic}: ${err}\n`);
+      // Log parse errors as structured JSON, but don't crash the consumer
+      const errMsg = _err instanceof Error ? _err.message : String(_err);
+      process.stderr.write(JSON.stringify({ level: 'error', msg: 'Failed to process Kafka message', topic, error: errMsg }) + '\n');
     }
   }
 }
@@ -112,7 +112,7 @@ export function mapEventToNotification(
     case 'DriverAssigned':
       return {
         status: 'DRIVER_ASSIGNED',
-        message: `Driver ${data.driver_name} is on the way`,
+        message: `Driver ${String(data.driver_name ?? 'Unknown')} is on the way`,
         data,
       };
     case 'DriverPickedUp':
