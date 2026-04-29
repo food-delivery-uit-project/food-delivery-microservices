@@ -1,21 +1,25 @@
-import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
+import { Kafka, Consumer, EachMessagePayload, logLevel } from 'kafkajs';
 import { SSEManager } from '../sse/manager';
+import { CloudEvent, EventType, NotificationPayload } from '../types/events';
 
 /**
- * Kafka consumer that listens to order/payment/delivery events
+ * Kafka consumer that listens to order/payment/delivery/restaurant events
  * and pushes real-time updates to connected clients via SSE.
  */
 export class KafkaConsumer {
   private kafka: Kafka;
   private consumer: Consumer;
   private sseManager: SSEManager;
+  private processedEvents: Set<string> = new Set();
+  private readonly MAX_PROCESSED_CACHE = 10000;
 
-  constructor(brokers: string[], sseManager: SSEManager) {
+  constructor(brokers: string[], sseManager: SSEManager, groupId = 'notification-service-group') {
     this.kafka = new Kafka({
       clientId: 'notification-service',
       brokers,
+      logLevel: logLevel.WARN,
     });
-    this.consumer = this.kafka.consumer({ groupId: 'notification-service-group' });
+    this.consumer = this.kafka.consumer({ groupId });
     this.sseManager = sseManager;
   }
 
@@ -33,8 +37,6 @@ export class KafkaConsumer {
         await this.handleMessage(payload);
       },
     });
-
-    console.log('Kafka consumer connected and listening');
   }
 
   async disconnect(): Promise<void> {
@@ -45,56 +47,87 @@ export class KafkaConsumer {
     if (!message.value) return;
 
     try {
-      const event = JSON.parse(message.value.toString());
-      const eventType = event.type as string;
-      const orderId = event.data?.order_id as string;
+      const event = JSON.parse(message.value.toString()) as CloudEvent;
+      const eventType = event.type as EventType;
+      const eventId = event.id;
+      const orderId = (event.data as Record<string, unknown>)?.order_id as string;
 
       if (!orderId) {
-        console.warn('Event missing order_id', { topic, eventType });
         return;
       }
 
-      console.log('Processing event', { topic, eventType, orderId });
+      // Idempotency check: skip duplicate events
+      if (eventId && this.processedEvents.has(eventId)) {
+        return;
+      }
 
       // Map event type to notification message
-      const notification = this.mapEventToNotification(eventType, event.data);
+      const notification = mapEventToNotification(eventType, event.data as Record<string, unknown>);
       if (notification) {
         this.sseManager.send(orderId, notification);
       }
-    } catch (err) {
-      console.error('Failed to process Kafka message', { topic, error: err });
+
+      // Track processed event ID for idempotency
+      if (eventId) {
+        this.processedEvents.add(eventId);
+        // Evict oldest entries if cache grows too large
+        if (this.processedEvents.size > this.MAX_PROCESSED_CACHE) {
+          const firstKey = this.processedEvents.values().next().value;
+          if (firstKey) {
+            this.processedEvents.delete(firstKey);
+          }
+        }
+      }
+    } catch (_err) {
+      // Log parse errors but don't crash the consumer
+      const err = _err instanceof Error ? _err.message : String(_err);
+      process.stderr.write(`Failed to process Kafka message from ${topic}: ${err}\n`);
     }
   }
+}
 
-  private mapEventToNotification(
-    eventType: string,
-    data: Record<string, unknown>,
-  ): { status: string; message: string; data?: unknown } | null {
-    switch (eventType) {
-      case 'OrderCreated':
-        return { status: 'CREATED', message: 'Order has been created' };
-      case 'PaymentSuccess':
-        return { status: 'PAID', message: 'Payment completed successfully' };
-      case 'PaymentFailed':
-        return { status: 'PAYMENT_FAILED', message: 'Payment failed', data };
-      case 'OrderAccepted':
-        return { status: 'ACCEPTED', message: 'Restaurant accepted the order' };
-      case 'OrderRejected':
-        return { status: 'REJECTED', message: 'Restaurant rejected the order', data };
-      case 'OrderReadyForPickup':
-        return { status: 'READY', message: 'Order is ready for pickup' };
-      case 'DriverAssigned':
-        return { status: 'DRIVER_ASSIGNED', message: `Driver ${data.driver_name} is on the way`, data };
-      case 'DriverPickedUp':
-        return { status: 'PICKED_UP', message: 'Driver picked up the order' };
-      case 'OrderDelivered':
-        return { status: 'DELIVERED', message: 'Order delivered successfully' };
-      case 'OrderCancelled':
-        return { status: 'CANCELLED', message: 'Order has been cancelled', data };
-      case 'PaymentRefunded':
-        return { status: 'REFUNDED', message: 'Payment has been refunded' };
-      default:
-        return null;
-    }
+/**
+ * Maps a Kafka event type to a notification payload for SSE delivery.
+ * Returns null for unrecognized event types.
+ */
+export function mapEventToNotification(
+  eventType: string,
+  data: Record<string, unknown>,
+): NotificationPayload | null {
+  switch (eventType) {
+    case 'OrderCreated':
+      return { status: 'CREATED', message: 'Order has been created' };
+    case 'PaymentSuccess':
+      return { status: 'PAID', message: 'Payment completed successfully' };
+    case 'PaymentFailed':
+      return { status: 'PAYMENT_FAILED', message: 'Payment failed', data };
+    case 'PaymentRefunded':
+      return { status: 'REFUNDED', message: 'Payment has been refunded' };
+    case 'OrderAccepted':
+      return { status: 'ACCEPTED', message: 'Restaurant accepted the order' };
+    case 'OrderRejected':
+      return { status: 'REJECTED', message: 'Restaurant rejected the order', data };
+    case 'OrderReadyForPickup':
+      return { status: 'READY', message: 'Order is ready for pickup' };
+    case 'DriverAssigned':
+      return {
+        status: 'DRIVER_ASSIGNED',
+        message: `Driver ${data.driver_name} is on the way`,
+        data,
+      };
+    case 'DriverPickedUp':
+      return { status: 'PICKED_UP', message: 'Driver picked up the order' };
+    case 'OrderDelivered':
+      return { status: 'DELIVERED', message: 'Order delivered successfully' };
+    case 'OrderCancelled':
+      return { status: 'CANCELLED', message: 'Order has been cancelled', data };
+    case 'DispatchFailed':
+      return {
+        status: 'DISPATCH_FAILED',
+        message: 'No driver available at the moment',
+        data,
+      };
+    default:
+      return null;
   }
 }
