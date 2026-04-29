@@ -107,11 +107,14 @@ func (s *DispatchService) ConfirmDelivery(ctx context.Context, orderID, driverID
 		return fmt.Errorf("driver %s is not assigned to order %s", driverID, orderID)
 	}
 
-	// Update delivery status to DELIVERED
+	// Validate current status allows delivery confirmation
 	now := time.Now().UTC()
 	delivery, err := s.driverRepo.GetDeliveryStatus(ctx, orderID)
 	if err != nil {
 		return fmt.Errorf("delivery not found for order %s", orderID)
+	}
+	if delivery.Status != "PICKED_UP" && delivery.Status != "DRIVER_ASSIGNED" {
+		return fmt.Errorf("cannot confirm delivery for order %s from status %s", orderID, delivery.Status)
 	}
 	delivery.Status = "DELIVERED"
 	delivery.UpdatedAt = now
@@ -167,9 +170,10 @@ func (s *DispatchService) FindAndAssignDriver(ctx context.Context, orderID strin
 		slog.Error("Failed to set driver status to ASSIGNED", "driver_id", nearest.ID, "error", err)
 	}
 
-	// Save dispatch assignment (order → driver mapping)
+	// Save dispatch assignment (order → driver mapping) — this is a required write.
 	if err := s.driverRepo.SetDispatchAssignment(ctx, orderID, nearest.ID); err != nil {
-		slog.Error("Failed to save dispatch assignment", "error", err)
+		slog.Error("Failed to save dispatch assignment", "order_id", orderID, "driver_id", nearest.ID, "error", err)
+		return &domain.DispatchResult{OrderID: orderID, Success: false, ErrorMsg: err.Error()}, err
 	}
 
 	// Update delivery status to DRIVER_ASSIGNED

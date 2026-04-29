@@ -76,10 +76,18 @@ func (h *wsHandler) handleDriverWS(w http.ResponseWriter, r *http.Request) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
+	done := make(chan struct{})
+	defer close(done)
+
 	go func() {
-		for range ticker.C {
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+		for {
+			select {
+			case <-done:
 				return
+			case <-ticker.C:
+				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					return
+				}
 			}
 		}
 	}()
