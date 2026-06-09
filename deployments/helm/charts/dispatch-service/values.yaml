@@ -1,6 +1,6 @@
 image:
   repository: acrfooddelivery.azurecr.io/dispatch-service
-  tag: f4342c39e78f009dabfbec3d194af8abbce0f84e
+  tag: 1fc09188de369c2e5ffdc5b36bc499628d283595
   pullPolicy: IfNotPresent
 replicaCount: 1
 service:
