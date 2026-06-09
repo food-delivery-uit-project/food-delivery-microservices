@@ -1,6 +1,6 @@
 image:
   repository: acrfooddelivery.azurecr.io/notification-service
-  tag: f4342c39e78f009dabfbec3d194af8abbce0f84e
+  tag: 017a0760c717f1713a6dbc504f22949640e515cf
   pullPolicy: IfNotPresent
 replicaCount: 1
 service:
