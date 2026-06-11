@@ -35,6 +35,14 @@ spring:
       properties:
         spring.json.trusted.packages: "*"
 
+# SpringDoc OpenAPI/Swagger Configuration
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  paths-to-match: /api/v1/**
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:your-very-long-secret-key-for-development-only-change-in-production}

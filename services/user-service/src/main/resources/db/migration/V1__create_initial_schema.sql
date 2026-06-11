@@ -29,5 +29,11 @@ CREATE TABLE driver_profiles (
     avg_rating DECIMAL(2,1) DEFAULT 5.0
 );
 
+-- Idempotent Consumer pattern
+CREATE TABLE processed_events (
+    event_id VARCHAR(255) PRIMARY KEY,
+    processed_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_addresses_user_id ON addresses(user_id);
