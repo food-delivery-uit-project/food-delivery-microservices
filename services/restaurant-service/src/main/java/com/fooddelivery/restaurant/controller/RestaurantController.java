@@ -1,6 +1,7 @@
 package com.fooddelivery.restaurant.controller;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fooddelivery.restaurant.common.ApiResponse;
 import com.fooddelivery.restaurant.dto.CreateRestaurantRequest;
 import com.fooddelivery.restaurant.dto.RestaurantDto;
@@ -83,7 +84,7 @@ public class RestaurantController {
             @PathVariable UUID id,
             @Valid @RequestBody StatusUpdatePayload payload) {
 
-        RestaurantDto updated = restaurantService.updateStatus(id, payload.isActive());
+        RestaurantDto updated = restaurantService.updateStatus(id, payload.getActive());
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
@@ -114,21 +115,22 @@ public class RestaurantController {
     }
 
     public static class StatusUpdatePayload {
-        @JsonAlias({"isActive", "is_active"})
-        private Boolean isActive;
+        @JsonProperty("isActive")
+        @JsonAlias("is_active")
+        private Boolean active;
 
         public StatusUpdatePayload() {}
 
-        public StatusUpdatePayload(Boolean isActive) {
-            this.isActive = isActive;
+        public StatusUpdatePayload(Boolean active) {
+            this.active = active;
         }
 
-        public Boolean isActive() {
-            return isActive;
+        public Boolean getActive() {
+            return active;
         }
 
-        public void setIsActive(Boolean isActive) {
-            this.isActive = isActive;
+        public void setActive(Boolean active) {
+            this.active = active;
         }
     }
 }
