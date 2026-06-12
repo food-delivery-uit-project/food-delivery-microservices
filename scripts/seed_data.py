@@ -12,7 +12,8 @@ import urllib.request
 import urllib.error
 
 
-BASE_URL = "http://localhost:8000"  # Kong Gateway
+USER_SERVICE_URL = "http://localhost:8001"
+RESTAURANT_SERVICE_URL = "http://localhost:8002"
 
 SAMPLE_USERS = [
     {
@@ -137,12 +138,43 @@ SAMPLE_RESTAURANTS = [
 ]
 
 
+import base64
+
+def get_user_info(token: str) -> dict:
+    try:
+        parts = token.split('.')
+        if len(parts) != 3:
+            return {}
+        payload = parts[1]
+        # Pad base64 string
+        payload += '=' * (4 - len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(payload).decode('utf-8')
+        data = json.loads(decoded)
+        return {
+            "id": data.get("sub"),
+            "role": data.get("role")
+        }
+    except Exception as e:
+        print(f"  ❌ Error decoding token: {e}")
+        return {}
+
 def api_call(method: str, path: str, data: dict = None, token: str = None) -> dict:
     """Make an HTTP request to the API."""
-    url = f"{BASE_URL}{path}"
     headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    
+    # Route directly to the respective service ports
+    if path.startswith("/api/v1/auth") or path.startswith("/api/v1/users"):
+        url = f"{USER_SERVICE_URL}{path}"
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+    else:
+        url = f"{RESTAURANT_SERVICE_URL}{path}"
+        if token:
+            # Emulate Gateway headers for Restaurant Service
+            user_info = get_user_info(token)
+            if user_info:
+                headers["X-User-Id"] = user_info.get("id")
+                headers["X-User-Role"] = user_info.get("role")
 
     body = json.dumps(data).encode("utf-8") if data else None
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
@@ -156,8 +188,7 @@ def api_call(method: str, path: str, data: dict = None, token: str = None) -> di
         return {"error": True, "status": e.code}
     except urllib.error.URLError as e:
         print(f"  ❌ Connection failed: {e.reason}")
-        print("  Make sure Kong Gateway is accessible at localhost:8000")
-        print("  Run: kubectl port-forward svc/kong-gateway-proxy 8000:80 -n food-app")
+        print("  Make sure services are running locally on port 8001 and 8002.")
         sys.exit(1)
 
 
@@ -201,7 +232,8 @@ def seed_restaurants(owner_token: str) -> None:
 
 def main() -> None:
     print("🌱 Seeding Food Delivery Platform with sample data...")
-    print(f"   Target: {BASE_URL}")
+    print(f"   User Service: {USER_SERVICE_URL}")
+    print(f"   Restaurant Service: {RESTAURANT_SERVICE_URL}")
 
     tokens = seed_users()
 
