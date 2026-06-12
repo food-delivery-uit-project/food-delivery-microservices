@@ -160,6 +160,34 @@ paths:
         '201':
           description: Address created
 
+  /api/v1/users/{id}:
+    get:
+      summary: Get user profile by ID
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /api/internal/users/{id}:
     get:
       summary: "[Internal] Get user by ID"

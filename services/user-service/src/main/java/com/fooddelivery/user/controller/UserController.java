@@ -81,4 +81,15 @@ public class UserController {
         AddressResponse address = userService.addAddress(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(address));
     }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get user profile by ID", description = "Retrieves profile details of a user by their UUID. Requires authentication.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User profile retrieved successfully",
+        content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found",
+        content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable UUID id) {
+        UserResponse user = userService.findById(id);
+        return ResponseEntity.ok(ApiResponse.ok(user));
+    }
 }
