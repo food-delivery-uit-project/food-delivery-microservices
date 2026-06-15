@@ -1,7 +1,9 @@
-package com.fooddelivery.order.exception;
+package com.fooddelivery.order.adapter.inbound.rest;
 
-import com.fooddelivery.order.adapter.inbound.rest.ApiResponse;
 import com.fooddelivery.order.adapter.inbound.rest.ApiResponse.FieldError;
+import com.fooddelivery.order.application.ResourceNotFoundException;
+import com.fooddelivery.order.domain.model.InvalidOrderTransitionException;
+import com.fooddelivery.order.exception.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,8 +18,6 @@ import java.util.List;
 /**
  * Global exception handler for consistent error responses.
  * All exceptions are caught here and formatted per API_STYLE_GUIDE.md.
- *
- * Add new domain-specific exception types here as needed.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -45,12 +45,12 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
     }
 
-    // --- Duplicate / Conflict (409) ---
+    // --- Order state machine violation (422) ---
 
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDuplicate(DuplicateResourceException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
+    @ExceptionHandler(InvalidOrderTransitionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidTransition(InvalidOrderTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ApiResponse.error("INVALID_ORDER_TRANSITION", ex.getMessage()));
     }
 
     // --- Business logic error (422) ---

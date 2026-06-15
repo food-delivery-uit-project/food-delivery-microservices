@@ -17,4 +17,8 @@ public interface OrderRepository {
     Order save(Order order);
 
     Optional<Order> findById(UUID id);
+
+    java.util.List<Order> findByCustomerId(UUID customerId);
+
+    java.util.List<Order> findByRestaurantId(UUID restaurantId);
 }
