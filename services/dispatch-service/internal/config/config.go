@@ -17,6 +17,7 @@ type Config struct {
 	MatchRetryInterval time.Duration
 	MatchMaxRetries    int
 	MatchRadiusKm      float64
+	OTelServiceName    string
 }
 
 // Load reads configuration from environment variables with sensible defaults.

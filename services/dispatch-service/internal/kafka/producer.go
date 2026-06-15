@@ -6,6 +6,8 @@ import (
 	"log/slog"
 
 	kafkago "github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 const deliveryEventsTopic = "delivery-events"
@@ -58,6 +60,13 @@ func (p *Producer) publish(ctx context.Context, key, eventType string, data inte
 	msg := kafkago.Message{
 		Key:   []byte(key),
 		Value: payload,
+	}
+
+	// Inject OpenTelemetry context into Kafka headers
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	for k, v := range carrier {
+		msg.Headers = append(msg.Headers, kafkago.Header{Key: k, Value: []byte(v)})
 	}
 
 	if err := p.writer.WriteMessages(ctx, msg); err != nil {

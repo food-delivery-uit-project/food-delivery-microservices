@@ -1,0 +1,87 @@
+openapi: 3.0.3
+info:
+  title: Dispatch Service API
+  description: API for managing food delivery driver dispatch and status.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Local Gateway
+paths:
+  /api/v1/delivery/{orderId}:
+    get:
+      summary: Get Delivery Status
+      description: Returns the current dispatch and delivery status for a given order.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Delivery status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryStatusResponse'
+        '404':
+          description: Delivery not found
+
+  /api/v1/delivery/{orderId}/pickup:
+    patch:
+      summary: Confirm Driver Pickup
+      description: Driver confirms they have picked up the order from the restaurant.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pickup confirmed successfully
+        '401':
+          description: Unauthorized - missing X-User-Id
+        '409':
+          description: Conflict - Order not in appropriate state
+
+  /api/v1/delivery/{orderId}/deliver:
+    patch:
+      summary: Confirm Order Delivery
+      description: Driver confirms they have delivered the order to the customer.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Delivery confirmed successfully
+        '401':
+          description: Unauthorized - missing X-User-Id
+        '409':
+          description: Conflict - Order not in appropriate state
+
+components:
+  schemas:
+    DeliveryStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            order_id:
+              type: string
+            driver_id:
+              type: string
+            status:
+              type: string
+            updated_at:
+              type: string
+              format: date-time

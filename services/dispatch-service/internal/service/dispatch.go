@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/food-delivery/dispatch-service/internal/kafka"
 	"github.com/food-delivery/dispatch-service/internal/matching"
 	"github.com/food-delivery/dispatch-service/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // DispatchService orchestrates driver matching and delivery lifecycle.
@@ -41,7 +44,8 @@ func NewDispatchService(
 	}
 }
 
-// GetDeliveryStatus returns the current delivery status for an order.
+// GetDeliveryStatus retrieves the current delivery status for an order from Redis.
+// It returns a DeliveryStatus object or an error if the order is not found.
 func (s *DispatchService) GetDeliveryStatus(ctx context.Context, orderID string) (*domain.DeliveryStatus, error) {
 	status, err := s.driverRepo.GetDeliveryStatus(ctx, orderID)
 	if err != nil {
@@ -51,6 +55,9 @@ func (s *DispatchService) GetDeliveryStatus(ctx context.Context, orderID string)
 }
 
 // ConfirmPickup marks the order as picked up by the assigned driver.
+// It verifies that the requesting driver is actually assigned to the order
+// and that the order is currently in the "DRIVER_ASSIGNED" state.
+// Upon success, it updates the status to "PICKED_UP" and publishes a "DriverPickedUp" event to Kafka.
 func (s *DispatchService) ConfirmPickup(ctx context.Context, orderID, driverID string) error {
 	slog.Info("Driver confirming pickup", "order_id", orderID, "driver_id", driverID)
 
@@ -95,6 +102,9 @@ func (s *DispatchService) ConfirmPickup(ctx context.Context, orderID, driverID s
 }
 
 // ConfirmDelivery marks the order as delivered and frees up the driver.
+// It verifies the driver assignment and current status ("PICKED_UP").
+// It updates the status to "DELIVERED", marks the driver as available again,
+// and publishes an "OrderDelivered" event to Kafka.
 func (s *DispatchService) ConfirmDelivery(ctx context.Context, orderID, driverID string) error {
 	slog.Info("Driver confirming delivery", "order_id", orderID, "driver_id", driverID)
 
@@ -170,9 +180,24 @@ func (s *DispatchService) FindAndAssignDriver(ctx context.Context, orderID strin
 		slog.Error("Failed to set driver status to ASSIGNED", "driver_id", nearest.ID, "error", err)
 	}
 
-	// Save dispatch assignment (order → driver mapping) — this is a required write.
-	if err := s.driverRepo.SetDispatchAssignment(ctx, orderID, nearest.ID); err != nil {
-		slog.Error("Failed to save dispatch assignment", "order_id", orderID, "driver_id", nearest.ID, "error", err)
+	// Prepare DriverAssigned event payload
+	eventData := kafka.DriverAssignedData{
+		OrderID:                 orderID,
+		DriverID:                nearest.ID,
+		DriverName:              nearest.Name,
+		DriverPhone:             nearest.Phone,
+		EstimatedArrivalMinutes: 10, // Simplified estimate
+	}
+	eventJSON, _ := json.Marshal(eventData)
+
+	// Extract current traceparent to pass to the outbox
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	traceparent := carrier["traceparent"]
+
+	// Save dispatch assignment (order → driver mapping) and outbox event atomically
+	if err := s.driverRepo.SetDispatchAssignmentWithOutbox(ctx, orderID, nearest.ID, string(eventJSON), traceparent); err != nil {
+		slog.Error("Failed to save dispatch assignment to outbox", "order_id", orderID, "driver_id", nearest.ID, "error", err)
 		return &domain.DispatchResult{OrderID: orderID, Success: false, ErrorMsg: err.Error()}, err
 	}
 
@@ -189,20 +214,7 @@ func (s *DispatchService) FindAndAssignDriver(ctx context.Context, orderID strin
 		slog.Error("Failed to update delivery status", "error", err)
 	}
 
-	// Publish DriverAssigned event
-	if s.producer != nil {
-		if err := s.producer.PublishDriverAssigned(ctx, kafka.DriverAssignedData{
-			OrderID:                 orderID,
-			DriverID:                nearest.ID,
-			DriverName:              nearest.Name,
-			DriverPhone:             nearest.Phone,
-			EstimatedArrivalMinutes: 10, // Simplified estimate
-		}); err != nil {
-			slog.Error("Failed to publish DriverAssigned event", "error", err)
-		}
-	}
-
-	slog.Info("Driver assigned", "order_id", orderID, "driver_id", nearest.ID)
+	slog.Info("Driver assigned with Outbox pattern", "order_id", orderID, "driver_id", nearest.ID)
 	return &domain.DispatchResult{OrderID: orderID, Driver: nearest, Success: true}, nil
 }
 

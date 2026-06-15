@@ -7,7 +7,8 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /dispatch-service ./cmd/server
 
 # Run stage (minimal image)
-FROM gcr.io/distroless/static-debian12
+FROM alpine:latest
 COPY --from=builder /dispatch-service /dispatch-service
+COPY docs/ /docs/
 EXPOSE 8080
 ENTRYPOINT ["/dispatch-service"]

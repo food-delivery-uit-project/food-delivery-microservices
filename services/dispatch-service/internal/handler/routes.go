@@ -20,6 +20,29 @@ func RegisterRoutes(mux *http.ServeMux, svc *service.DispatchService, driverRepo
 	// WebSocket endpoint for driver GPS streaming
 	ws := newWSHandler(driverRepo)
 	mux.HandleFunc("/ws/driver/location", ws.handleDriverWS)
+
+	// Swagger / OpenAPI endpoints
+	mux.HandleFunc("GET /docs/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "docs/openapi.yaml")
+	})
+	mux.HandleFunc("GET /api-docs/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Dispatch Service API</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <style>body { margin: 0; padding: 0; }</style>
+  </head>
+  <body>
+    <redoc spec-url='/docs/openapi.yaml'></redoc>
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"> </script>
+  </body>
+</html>`))
+	})
 }
 
 type dispatchHandler struct {
