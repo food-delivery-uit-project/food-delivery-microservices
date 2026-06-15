@@ -1,0 +1,64 @@
+# Default deny all ingress traffic in food-app namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: food-app
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+---
+# Allow Kong to access all services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-ingress
+  namespace: food-app
+spec:
+  podSelector: {} # Applies to all pods
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: kong
+---
+# Allow OrderService, DispatchService, NotificationService to access internal dependencies
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internal-traffic
+  namespace: food-app
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app, operator: In, values: [restaurant-service, payment-service, dispatch-service, notification-service]}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: order-service
+    - podSelector:
+        matchLabels:
+          app: kong
+---
+# Allow Kafka to be accessed by order, payment, restaurant, dispatch, notification
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kafka-access
+  namespace: kafka
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: food-app
+

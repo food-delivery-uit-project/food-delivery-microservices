@@ -1,0 +1,33 @@
+## Kind cluster configuration for local Food Delivery Microservices development
+## Includes port mappings for:
+##  - Port 8000 → NodePort 30080 (Kong API Gateway)
+##  - Port 8443 → NodePort 30443 (Kong HTTPS)
+##
+## Usage: kind create cluster --name food-delivery --config deployments/local/kind-config.yaml
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      ## Kong API Gateway HTTP
+      - containerPort: 30080
+        hostPort: 8000
+        protocol: TCP
+      ## Kong API Gateway HTTPS
+      - containerPort: 30443
+        hostPort: 8443
+        protocol: TCP
+  ## Worker nodes for HA demo
+  - role: worker
+    labels:
+      workload: apps
+  - role: worker
+    labels:
+      workload: observability

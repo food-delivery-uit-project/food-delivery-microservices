@@ -2,25 +2,67 @@ image:
   repository: acrfooddelivery.azurecr.io/notification-service
   tag: 017a0760c717f1713a6dbc504f22949640e515cf
   pullPolicy: IfNotPresent
+
 replicaCount: 1
+
 service:
   type: ClusterIP
   port: 8080
+
 resources:
-  requests: {cpu: 200m, memory: 64Mi}
-  limits: {cpu: 500m, memory: 128Mi}
+  requests:
+    cpu: 200m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+## Node.js service — expose /metrics (prom-client)
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  interval: 15s
+  scrapeTimeout: 10s
+
 env:
   PORT: "8080"
+  NODE_ENV: "production"
   KAFKA_BROKERS: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092
   REDIS_URL: redis://redis-master.databases.svc:6379
   OTEL_SERVICE_NAME: notification-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4317
+  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=k8s-local"
+
 probes:
-  liveness: {path: /health/live, initialDelaySeconds: 5, periodSeconds: 10}
-  readiness: {path: /health/ready, initialDelaySeconds: 5, periodSeconds: 5}
+  liveness:
+    path: /health/live
+    initialDelaySeconds: 240
+    periodSeconds: 10
+    timeoutSeconds: 5
+  readiness:
+    path: /health/ready
+    initialDelaySeconds: 240
+    periodSeconds: 10
+    timeoutSeconds: 5
+
 ingress:
   enabled: true
   className: kong
-  annotations: {}
+  annotations:
+    konghq.com/plugins: rate-limit-api, cors-plugin
   paths:
     - path: /api/v1/notifications
+      pathType: Prefix
+    - path: /sse
       pathType: Prefix

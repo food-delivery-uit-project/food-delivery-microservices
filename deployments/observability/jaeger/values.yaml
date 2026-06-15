@@ -1,0 +1,61 @@
+## Jaeger All-in-One Helm values (suitable for development/demo)
+## For production use Jaeger Operator with distributed deployment.
+##
+## Chart: jaegertracing/jaeger
+## Deploy: helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+##         helm upgrade --install jaeger jaegertracing/jaeger \
+##           -n observability -f deployments/observability/jaeger/values.yaml
+
+provisionDataStore:
+  cassandra: false
+  elasticsearch: false
+  kafka: false
+
+## Use all-in-one for local/demo (includes collector, query, agent in one pod)
+allInOne:
+  enabled: true
+  image:
+    tag: "1.57.0"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  ## In-memory storage for demo - use Elasticsearch in production
+  args:
+    - "--memory.max-traces=50000"
+    - "--query.base-path=/jaeger"
+  env:
+    SPAN_STORAGE_TYPE: memory
+    COLLECTOR_OTLP_ENABLED: "true"   # Accept OTLP gRPC (port 4317) and HTTP (port 4318)
+
+  ## Expose OTLP ports for service instrumentation
+  service:
+    type: ClusterIP
+
+  ## Extra ports for OTLP
+  extraPorts:
+    - name: otlp-grpc
+      containerPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      containerPort: 4318
+      protocol: TCP
+
+## Disable distributed components (using all-in-one)
+agent:
+  enabled: false
+
+collector:
+  enabled: false
+
+query:
+  enabled: false
+
+storage:
+  type: memory
+
+## Service for OTLP ingestion
+## Services will send traces to: jaeger-all-in-one.observability.svc:4317 (OTLP gRPC)

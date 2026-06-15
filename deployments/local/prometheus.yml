@@ -1,0 +1,51 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  ## Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  ## Java services (Spring Boot Actuator /actuator/prometheus)
+  - job_name: user-service
+    static_configs:
+      - targets: ['user-service:8080']
+    metrics_path: /actuator/prometheus
+    relabel_configs:
+      - target_label: service
+        replacement: user-service
+
+  - job_name: restaurant-service
+    static_configs:
+      - targets: ['restaurant-service:8080']
+    metrics_path: /actuator/prometheus
+    relabel_configs:
+      - target_label: service
+        replacement: restaurant-service
+
+  - job_name: order-service
+    static_configs:
+      - targets: ['order-service:8080']
+    metrics_path: /actuator/prometheus
+    relabel_configs:
+      - target_label: service
+        replacement: order-service
+
+  - job_name: payment-service
+    static_configs:
+      - targets: ['payment-service:8080']
+    metrics_path: /actuator/prometheus
+    relabel_configs:
+      - target_label: service
+        replacement: payment-service
+
+  ## Go service (dispatch-service /metrics)
+  - job_name: dispatch-service
+    static_configs:
+      - targets: ['dispatch-service:8080']
+    metrics_path: /metrics
+    relabel_configs:
+      - target_label: service
+        replacement: dispatch-service

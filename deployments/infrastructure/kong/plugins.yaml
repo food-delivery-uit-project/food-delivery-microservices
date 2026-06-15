@@ -1,0 +1,50 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rate-limit-api
+  namespace: food-app
+config:
+  minute: 100
+  limit_by: ip
+  policy: local
+plugin: rate-limiting
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-auth
+  namespace: food-app
+config:
+  claims_to_verify:
+    - exp
+  key_claim_name: kid
+plugin: jwt
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: cors-plugin
+  namespace: food-app
+config:
+  origins:
+    - "*"
+  methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  headers:
+    - Accept
+    - Accept-Version
+    - Content-Length
+    - Content-MD5
+    - Content-Type
+    - Date
+    - Authorization
+  exposed_headers:
+    - Authorization
+  credentials: true
+  max_age: 3600
+plugin: cors

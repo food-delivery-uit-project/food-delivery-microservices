@@ -1,0 +1,191 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: food-delivery-alerts
+  namespace: observability
+  labels:
+    app: kube-prometheus-stack
+    release: kube-prometheus-stack
+spec:
+  groups:
+    ## =========================================================
+    ## Service Health
+    ## =========================================================
+    - name: food-delivery.service-health
+      interval: 30s
+      rules:
+        - alert: ServiceDown
+          expr: |
+            up{namespace="food-app"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "Service {{ $labels.service }} is down"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been down for more than 1 minute."
+            runbook: "https://github.com/<org>/food-delivery-microservices/blob/main/docs/operations/RUNBOOK.md#service-down"
+
+        - alert: PodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total{namespace="food-app"}[5m]) * 60 > 3
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash looping"
+            description: "Pod {{ $labels.pod }} has restarted {{ $value | printf \"%.0f\" }} times in the last 5 minutes."
+
+        - alert: DeploymentReplicasMismatch
+          expr: |
+            kube_deployment_spec_replicas{namespace="food-app"} != kube_deployment_status_available_replicas{namespace="food-app"}
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Deployment {{ $labels.deployment }} has mismatched replicas"
+            description: "Deployment {{ $labels.deployment }} expected {{ $value }} replicas but got fewer available."
+
+    ## =========================================================
+    ## HTTP Error Rate
+    ## =========================================================
+    - name: food-delivery.http-errors
+      interval: 30s
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            (
+              sum by(service) (rate(http_server_requests_seconds_count{namespace="food-app", status=~"5.."}[2m]))
+              /
+              sum by(service) (rate(http_server_requests_seconds_count{namespace="food-app"}[2m]))
+            ) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            team: backend
+          annotations:
+            summary: "High HTTP error rate on {{ $labels.service }}"
+            description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.service }} (threshold: 5%)."
+
+        - alert: HighLatencyP99
+          expr: |
+            histogram_quantile(0.99,
+              sum by(service, le) (
+                rate(http_server_requests_seconds_bucket{namespace="food-app"}[5m])
+              )
+            ) > 1
+          for: 5m
+          labels:
+            severity: warning
+            team: backend
+          annotations:
+            summary: "High P99 latency on {{ $labels.service }}"
+            description: "P99 latency is {{ $value | humanizeDuration }} on {{ $labels.service }} (threshold: 1s)."
+
+    ## =========================================================
+    ## Kafka Consumer Lag
+    ## =========================================================
+    - name: food-delivery.kafka
+      interval: 60s
+      rules:
+        - alert: KafkaConsumerGroupLag
+          expr: |
+            kafka_consumergroup_lag_sum > 10000
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "Kafka consumer lag is critically high"
+            description: "Consumer group {{ $labels.consumergroup }} on topic {{ $labels.topic }} has lag of {{ $value }} messages."
+
+        - alert: KafkaConsumerGroupLagWarning
+          expr: |
+            kafka_consumergroup_lag_sum > 1000
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Kafka consumer lag is elevated"
+            description: "Consumer group {{ $labels.consumergroup }} on topic {{ $labels.topic }} has lag of {{ $value }} messages."
+
+    ## =========================================================
+    ## Resource Usage
+    ## =========================================================
+    - name: food-delivery.resources
+      interval: 60s
+      rules:
+        - alert: HighMemoryUsage
+          expr: |
+            (
+              container_memory_working_set_bytes{namespace="food-app", container!=""}
+              /
+              container_spec_memory_limit_bytes{namespace="food-app", container!=""} > 0
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "High memory usage on {{ $labels.pod }}"
+            description: "Memory usage is {{ $value | humanizePercentage }} on pod {{ $labels.pod }} (threshold: 85%)."
+
+        - alert: HighCPUUsage
+          expr: |
+            (
+              rate(container_cpu_usage_seconds_total{namespace="food-app", container!=""}[5m])
+              /
+              container_spec_cpu_quota{namespace="food-app", container!=""} * container_spec_cpu_period{namespace="food-app", container!=""}
+            ) > 0.90
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "High CPU usage on {{ $labels.pod }}"
+            description: "CPU usage is {{ $value | humanizePercentage }} on pod {{ $labels.pod }} (threshold: 90%)."
+
+    ## =========================================================
+    ## Business Metrics (SLO)
+    ## =========================================================
+    - name: food-delivery.slo
+      interval: 60s
+      rules:
+        ## SLO: Order creation success rate > 99%
+        - record: food_delivery:order_success_rate:5m
+          expr: |
+            sum(rate(http_server_requests_seconds_count{service="order-service", uri="/api/v1/orders", method="POST", status="201"}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{service="order-service", uri="/api/v1/orders", method="POST"}[5m]))
+
+        - alert: OrderCreationSLOViolation
+          expr: food_delivery:order_success_rate:5m < 0.99
+          for: 5m
+          labels:
+            severity: critical
+            team: backend
+            slo: order-creation
+          annotations:
+            summary: "Order creation SLO violated"
+            description: "Order creation success rate is {{ $value | humanizePercentage }} (SLO: 99%)."
+
+        ## SLO: Payment success rate > 98%
+        - record: food_delivery:payment_success_rate:5m
+          expr: |
+            sum(rate(http_server_requests_seconds_count{service="payment-service", status=~"2.."}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{service="payment-service"}[5m]))
+
+        - alert: PaymentSuccessRateSLOViolation
+          expr: food_delivery:payment_success_rate:5m < 0.98
+          for: 5m
+          labels:
+            severity: critical
+            team: backend
+            slo: payment-success
+          annotations:
+            summary: "Payment success rate SLO violated"
+            description: "Payment success rate is {{ $value | humanizePercentage }} (SLO: 98%)."
