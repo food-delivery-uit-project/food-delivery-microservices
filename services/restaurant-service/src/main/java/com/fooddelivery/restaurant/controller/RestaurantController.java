@@ -110,7 +110,8 @@ public class RestaurantController {
             @PathVariable UUID id,
             @PathVariable UUID orderId) {
 
-        eventProducer.publishOrderReadyForPickup(orderId, id);
+        RestaurantDto restaurant = restaurantService.getRestaurantById(id);
+        eventProducer.publishOrderReadyForPickup(orderId, id, restaurant.lat(), restaurant.lng());
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
