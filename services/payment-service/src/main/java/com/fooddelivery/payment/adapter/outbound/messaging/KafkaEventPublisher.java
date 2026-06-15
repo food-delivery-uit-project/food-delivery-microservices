@@ -6,8 +6,12 @@ import com.fooddelivery.payment.domain.event.PaymentSuccessEvent;
 import com.fooddelivery.payment.domain.port.outbound.EventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fooddelivery.payment.adapter.outbound.persistence.outbox.OutboxEventJpaEntity;
+import com.fooddelivery.payment.adapter.outbound.persistence.outbox.SpringDataOutboxRepository;
 import org.springframework.stereotype.Component;
+import java.util.Map;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -19,74 +23,55 @@ public class KafkaEventPublisher implements EventPublisher {
     private static final String TOPIC = "payment-events";
     private static final String SOURCE = "payment-service";
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final SpringDataOutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
-    public KafkaEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
+    public KafkaEventPublisher(SpringDataOutboxRepository outboxRepository, ObjectMapper objectMapper) {
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public void publishSuccess(PaymentSuccessEvent event) {
-        CloudEventEnvelope<PaymentSuccessData> envelope = new CloudEventEnvelope<>(
-                UUID.randomUUID().toString(),
-                SOURCE,
-                "PaymentSuccess",
-                Instant.now().toString(),
-                "application/json",
-                new PaymentSuccessData(
+        send(event.getOrderId().toString(), "PaymentSuccess", new PaymentSuccessData(
                         event.getOrderId().toString(),
                         event.getPaymentId().toString(),
                         event.getAmount().doubleValue(),
                         event.getTransactionId()
-                )
-        );
-        send(event.getOrderId().toString(), envelope);
+                ));
     }
 
     @Override
     public void publishFailure(PaymentFailedEvent event) {
-        CloudEventEnvelope<PaymentFailedData> envelope = new CloudEventEnvelope<>(
-                UUID.randomUUID().toString(),
-                SOURCE,
-                "PaymentFailed",
-                Instant.now().toString(),
-                "application/json",
-                new PaymentFailedData(
+        send(event.getOrderId().toString(), "PaymentFailed", new PaymentFailedData(
                         event.getOrderId().toString(),
                         event.getPaymentId().toString(),
                         event.getFailureReason()
-                )
-        );
-        send(event.getOrderId().toString(), envelope);
+                ));
     }
 
     @Override
     public void publishRefunded(PaymentRefundedEvent event) {
-        CloudEventEnvelope<PaymentRefundedData> envelope = new CloudEventEnvelope<>(
-                UUID.randomUUID().toString(),
-                SOURCE,
-                "PaymentRefunded",
-                Instant.now().toString(),
-                "application/json",
-                new PaymentRefundedData(
+        send(event.getOrderId().toString(), "PaymentRefunded", new PaymentRefundedData(
                         event.getOrderId().toString(),
                         event.getPaymentId().toString(),
                         event.getRefundAmount().doubleValue()
-                )
-        );
-        send(event.getOrderId().toString(), envelope);
+                ));
     }
 
-    private void send(String key, Object envelope) {
-        log.info("Publishing event key: {} to topic: {}", key, TOPIC);
-        kafkaTemplate.send(TOPIC, key, envelope)
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to send event key: {}", key, ex);
-                    } else {
-                        log.debug("Event successfully published to metadata: {}", result.getRecordMetadata());
-                    }
-                });
+    private void send(String orderId, String eventType, Object data) {
+        log.info("Saving event key: {} to outbox for topic: {}", orderId, TOPIC);
+        OutboxEventJpaEntity event = new OutboxEventJpaEntity();
+        event.setId(UUID.randomUUID());
+        event.setAggregateType("Order");
+        event.setAggregateId(UUID.fromString(orderId));
+        event.setEventType(eventType);
+        
+        Map<String, Object> payloadMap = objectMapper.convertValue(data, new TypeReference<Map<String, Object>>() {});
+        event.setPayload(payloadMap);
+        
+        event.setCreatedAt(Instant.now());
+        outboxRepository.save(event);
     }
 
     // --- CloudEvent Envelope Record ---

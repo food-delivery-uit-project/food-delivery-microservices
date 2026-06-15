@@ -26,15 +26,9 @@ public class MockPaymentGateway implements PaymentGateway {
             Thread.currentThread().interrupt();
         }
 
-        // 90% success rate, 10% failure
-        int chance = random.nextInt(100);
-        if (chance < 90) {
-            String transactionId = "mock_tx_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-            log.info("Mock payment SUCCESS for order {}. TxID: {}", orderId, transactionId);
-            return new PaymentResult(true, transactionId, null);
-        } else {
-            log.warn("Mock payment FAILED for order {} due to insufficient funds.", orderId);
-            return new PaymentResult(false, null, "INSUFFICIENT_FUNDS");
-        }
+        // 100% success rate for reliable E2E testing
+        String transactionId = "mock_tx_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        log.info("Mock payment SUCCESS for order {}. TxID: {}", orderId, transactionId);
+        return new PaymentResult(true, transactionId, null);
     }
 }

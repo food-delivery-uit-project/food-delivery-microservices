@@ -29,7 +29,7 @@ public class CompensationEventConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = {"restaurant-events", "delivery-events"}, groupId = "payment-service-group")
+    @KafkaListener(topics = {"order-events"}, groupId = "payment-service-compensation-group")
     @Transactional
     public void consume(String message) {
         log.info("Received Kafka event on compensation topics: {}", message);
@@ -49,10 +49,10 @@ public class CompensationEventConsumer {
                 return;
             }
 
-            // Handle OrderRejected or DispatchFailed
-            if ("OrderRejected".equals(type) || "DispatchFailed".equals(type)) {
+            // Handle OrderCancelled from Saga Orchestrator
+            if ("OrderCancelledEvent".equals(type) || "OrderCancelled".equals(type)) {
                 JsonNode data = envelope.path("data");
-                UUID orderId = UUID.fromString(data.path("order_id").asText());
+                UUID orderId = UUID.fromString(data.path("orderId").asText());
                 String reason = data.path("reason").asText("Saga compensation rollback");
 
                 log.info("Received compensation event {} for order {}, type: {}. Triggering refund.", id, orderId, type);
