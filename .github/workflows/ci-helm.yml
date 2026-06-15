@@ -1,0 +1,92 @@
+name: CI - Helm Charts
+
+on:
+  pull_request:
+    paths:
+      - "deployments/helm/**"
+      - "deployments/infrastructure/**"
+      - "deployments/observability/**"
+      - ".github/workflows/ci-helm.yml"
+  push:
+    branches: [main]
+    paths:
+      - "deployments/helm/**"
+      - "deployments/observability/**"
+
+jobs:
+  helm-lint:
+    name: Lint & Validate Helm Charts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.15.0"
+
+      - name: Install kubeconform (K8s manifest validator)
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin kubeconform
+          kubeconform -v
+
+      - name: Helm Lint — all charts
+        run: |
+          failed=0
+          for chart in deployments/helm/charts/*/; do
+            echo "=== Linting $chart ==="
+            helm lint "$chart" || failed=1
+          done
+          exit $failed
+
+      - name: Helm Template — dry run render
+        run: |
+          echo "=== Rendering umbrella chart ==="
+          helm dependency update deployments/helm/
+          helm template food-delivery deployments/helm/ \
+            --set 'order-service.image.tag=test' \
+            --set 'user-service.image.tag=test' \
+            --set 'restaurant-service.image.tag=test' \
+            --set 'payment-service.image.tag=test' \
+            --set 'dispatch-service.image.tag=test' \
+            --set 'notification-service.image.tag=test' \
+            > /tmp/rendered-manifests.yaml
+          echo "✅ Templates rendered: $(wc -l < /tmp/rendered-manifests.yaml) lines"
+
+      - name: kubeconform — validate rendered manifests
+        run: |
+          kubeconform \
+            -kubernetes-version 1.29.0 \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -ignore-missing-schemas \
+            -summary \
+            /tmp/rendered-manifests.yaml
+
+      - name: Upload rendered manifests (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-rendered-manifests
+          path: /tmp/rendered-manifests.yaml
+          retention-days: 7
+
+  observability-lint:
+    name: Validate Observability Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin kubeconform
+
+      - name: Validate OTel Collector manifest
+        run: |
+          kubeconform \
+            -kubernetes-version 1.29.0 \
+            -ignore-missing-schemas \
+            -summary \
+            deployments/observability/otel-collector.yaml
