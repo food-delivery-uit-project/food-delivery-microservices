@@ -1,5 +1,5 @@
 image:
-  repository: acrfooddelivery.azurecr.io/order-service
+  repository: ghcr.io/food-delivery-uit-project/order-service
   tag: bbac661258bf8ef919c36c049525444f6f925a18
   pullPolicy: IfNotPresent
 

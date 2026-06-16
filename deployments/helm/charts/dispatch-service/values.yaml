@@ -1,5 +1,5 @@
 image:
-  repository: acrfooddelivery.azurecr.io/dispatch-service
+  repository: ghcr.io/food-delivery-uit-project/dispatch-service
   tag: 1fc09188de369c2e5ffdc5b36bc499628d283595
   pullPolicy: IfNotPresent
 

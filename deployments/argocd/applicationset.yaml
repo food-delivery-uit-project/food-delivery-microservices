@@ -19,7 +19,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/<org>/food-delivery-microservices.git
+        repoURL: https://github.com/food-delivery-uit-project/food-delivery-microservices.git
         targetRevision: main
         path: 'deployments/helm/charts/{{service}}'
       destination:

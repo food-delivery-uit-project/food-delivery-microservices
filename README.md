@@ -116,7 +116,7 @@ python3 --version     # 3.10+
 
 ```bash
 # Clone
-git clone https://github.com/<org>/food-delivery-microservices.git
+git clone https://github.com/food-delivery-uit-project/food-delivery-microservices.git
 cd food-delivery-microservices
 
 # Full setup: Kind cluster + PostgreSQL + Redis + Kafka + Kong + Prometheus + Grafana + Loki + Jaeger

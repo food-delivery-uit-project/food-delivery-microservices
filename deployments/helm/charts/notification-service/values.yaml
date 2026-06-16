@@ -1,5 +1,5 @@
 image:
-  repository: acrfooddelivery.azurecr.io/notification-service
+  repository: ghcr.io/food-delivery-uit-project/notification-service
   tag: 017a0760c717f1713a6dbc504f22949640e515cf
   pullPolicy: IfNotPresent
 
