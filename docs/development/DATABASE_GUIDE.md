@@ -2,7 +2,7 @@
 
 ## 1. Database Strategy
 
-| Service | Database | Schema/DB Name | Lý do |
+| Service | Database | Schema/DB Name | Reason |
 |---------|----------|---------------|-------|
 | User Service | PostgreSQL | `user_db` | Relational data, ACID for auth |
 | Restaurant Service | PostgreSQL | `restaurant_db` | JSONB for flexible menu structure |
@@ -10,11 +10,11 @@
 | Payment Service | PostgreSQL | `payment_db` | Financial data integrity |
 | Dispatch Service | Redis | `db 0` | Geospatial indexing, ephemeral state |
 
-> **Note:** Trong local/dev, chạy 1 PostgreSQL instance với multiple databases (logical separation). Production có thể tách thành instances riêng nếu cần.
+> **Note:** In local/dev environments, run 1 PostgreSQL instance with multiple databases (logical separation). Production can separate into distinct instances if needed.
 
 ## 2. Schema Migration (Flyway)
 
-Mọi Java service **BẮT BUỘC** dùng [Flyway](https://flywaydb.org/) để quản lý schema changes.
+All Java services **MUST** use [Flyway](https://flywaydb.org/) to manage schema changes.
 
 ### Migration File Convention
 
@@ -35,7 +35,7 @@ V{version}__{description}.sql
 - `V` prefix + version number (sequential)
 - Double underscore `__` separator
 - Description in `snake_case`
-- **KHÔNG BAO GIỜ** sửa migration file đã apply. Tạo file mới để thay đổi.
+- **NEVER** modify an already applied migration file. Create a new file for changes.
 
 ### Flyway Configuration (Spring Boot)
 
@@ -66,22 +66,22 @@ spring:
 
 Restaurant Service sử dụng JSONB cho flexible menu data:
 
-### Khi nào dùng JSONB vs Relational columns
+### When to use JSONB vs Relational columns
 
-| Dùng JSONB | Dùng Relational Column |
+| Use JSONB | Use Relational Column |
 |------------|----------------------|
-| Cấu trúc data thay đổi giữa các records (menu options) | Data cố định, query thường xuyên (name, price) |
-| Không cần query trực tiếp trên nested fields | Cần JOIN, GROUP BY, ORDER BY |
-| Schema-less / semi-structured data | Cần referential integrity (FK) |
+| Data structure varies between records (menu options) | Fixed data, queried frequently (name, price) |
+| No need to query directly on nested fields | Needs JOIN, GROUP BY, ORDER BY |
+| Schema-less / semi-structured data | Needs referential integrity (FK) |
 
 ### JSONB Query Examples
 
 ```sql
--- Tìm menu items có option "Size"
+-- Find menu items with the option "Size"
 SELECT * FROM menu_items
 WHERE options @> '[{"name": "Size"}]';
 
--- Lấy restaurant mở cửa thứ 2
+-- Get restaurants open on Mondays
 SELECT * FROM restaurants
 WHERE operating_hours->>'mon' IS NOT NULL;
 ```
@@ -106,18 +106,18 @@ public class MenuItem {
 
 ## 5. UUID Strategy
 
-- **Tất cả** primary keys dùng UUID v4 (`gen_random_uuid()` trong PostgreSQL)
-- Generate UUID ở **database level**, không ở application level
-- Lý do: Tránh collision trong distributed system, không leak thông tin tuần tự
+- **All** primary keys use UUID v4 (`gen_random_uuid()` in PostgreSQL)
+- Generate UUID at the **database level**, not the application level
+- Reason: Avoid collisions in distributed systems, no sequential information leaked
 
 ## 6. Soft Delete vs Hard Delete
 
-| Resource | Strategy | Lý do |
+| Resource | Strategy | Reason |
 |----------|----------|-------|
 | Users | **Soft delete** (`is_active = false`) | Regulatory, audit trail |
 | Orders | **Never delete** | Financial records |
 | Payments | **Never delete** | Financial records |
-| Menu Items | **Soft delete** (`is_available = false`) | Giữ lại cho order history reference |
+| Menu Items | **Soft delete** (`is_available = false`) | Keep for order history reference |
 | Driver Locations | **Hard delete** (Redis TTL) | Ephemeral data |
 
 ## 7. Connection Pool Configuration

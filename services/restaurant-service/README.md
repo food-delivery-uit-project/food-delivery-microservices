@@ -1,26 +1,31 @@
 # Restaurant Service
 
-## Mục Đích (Bounded Context)
-Restaurant Service chịu trách nhiệm quản lý Menu, Thông tin nhà hàng (Giờ mở cửa, Địa chỉ), và trạng thái hoạt động của nhà hàng. Đây là dữ liệu gốc (Source of Truth) cho các món ăn và giá cả trước khi Order Service tiến hành đặt hàng.
+## Purpose (Bounded Context)
+Restaurant Service is responsible for managing Menus, Restaurant Information (Operating Hours, Addresses), and the operational status of restaurants. This acts as the Source of Truth for menu items and prices before the Order Service processes an order.
 
-## Cấu trúc Thư mục (Layered Architecture)
-Service này được xây dựng theo kiến trúc **Layered Architecture**.
+## Directory Structure (Layered Architecture)
+This service is built using a **Layered Architecture**.
 
-- `controller`: Chứa các REST API cho phía khách hàng và các Internal API (nội bộ).
-- `service`: Chứa logic thao tác với dữ liệu nhà hàng.
-- `repository`: Truy cập cơ sở dữ liệu.
-- `model`: Thực thể (Entities).
+- `controller`: Contains the REST APIs for external clients and Internal APIs for service-to-service communication.
+- `service`: Contains logic for manipulating restaurant data.
+- `repository`: Handles database access.
+- `model`: Entities.
 
-## API Nội Bộ (Internal API)
-Service này expose một số endpoint nội bộ ở dạng `/api/internal/...` để các service khác (như Order Service) lấy thông tin giá cả và menu mà không qua Authentication của Gateway.
+## Internal API
+This service exposes certain internal endpoints under `/api/internal/...` allowing other services (like the Order Service) to fetch pricing and menu information without passing through Gateway Authentication.
 
-## Biến Môi Trường (Environment Variables)
-- `SPRING_DATASOURCE_URL`: (vd: `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/restaurant_db`)
-- `SPRING_DATASOURCE_USERNAME`: User DB
-- `SPRING_DATASOURCE_PASSWORD`: Password DB
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Cấu hình OpenTelemetry.
+## OpenAPI / Swagger Documentation
+API documentation is automatically generated. When the service is running, you can view the Swagger UI at:
+- **Swagger UI:** `http://localhost:8002/swagger-ui/index.html` (Assuming port 8002 for Restaurant Service)
+- **OpenAPI JSON:** `http://localhost:8002/v3/api-docs`
 
-## Cách chạy Local
+## Environment Variables
+- `SPRING_DATASOURCE_URL`: (e.g., `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/restaurant_db`)
+- `SPRING_DATASOURCE_USERNAME`: Database user
+- `SPRING_DATASOURCE_PASSWORD`: Database password
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry configuration.
+
+## How to Run Locally
 ```bash
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/restaurant_db
 export SPRING_DATASOURCE_USERNAME=food_user

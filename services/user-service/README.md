@@ -1,29 +1,34 @@
 # User Service
 
-## Mục Đích (Bounded Context)
-User Service quản lý toàn bộ thông tin về khách hàng (Customer) bao gồm hồ sơ (Profile), địa chỉ (Addresses), và xác thực cơ bản. Đây là điểm khởi đầu trong hệ thống Food Delivery khi người dùng tiến hành đăng nhập và tạo hồ sơ.
+## Purpose (Bounded Context)
+User Service manages all Customer information including Profiles, Addresses, and basic Authentication. This is the entry point into the Food Delivery system when users log in or create an account.
 
-## Cấu trúc Thư mục (Layered Architecture)
-Service này được xây dựng theo kiến trúc **Layered Architecture** đơn giản, phù hợp với các module mang tính chất CRUD nhiều hơn là logic nghiệp vụ phức tạp.
+## Directory Structure (Layered Architecture)
+This service is built using a simple **Layered Architecture**, which is suitable for modules that are mostly CRUD-oriented rather than having complex business logic.
 
-- `controller`: Chứa các REST API Endpoints.
-- `service`: Chứa Business Logic (xử lý nghiệp vụ).
-- `repository`: Giao tiếp với Database qua Spring Data JPA.
-- `model`/`dto`: Các thực thể Data Models và Data Transfer Objects.
+- `controller`: Contains the REST API Endpoints.
+- `service`: Contains the Business Logic.
+- `repository`: Communicates with the Database via Spring Data JPA.
+- `model`/`dto`: Data Models and Data Transfer Objects.
 
-## Biến Môi Trường (Environment Variables)
-- `SPRING_DATASOURCE_URL`: Chuỗi kết nối đến PostgreSQL (vd: `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/user_db`)
-- `SPRING_DATASOURCE_USERNAME`: User kết nối DB
-- `SPRING_DATASOURCE_PASSWORD`: Password kết nối DB
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Endpoint xuất OpenTelemetry Traces (vd: `http://otel-collector.observability.svc:4317`)
+## OpenAPI / Swagger Documentation
+API documentation is automatically generated. When the service is running, you can view the Swagger UI at:
+- **Swagger UI:** `http://localhost:8001/swagger-ui/index.html` (Assuming port 8001 for User Service)
+- **OpenAPI JSON:** `http://localhost:8001/v3/api-docs`
 
-## Cách chạy Local (Without Docker/K8s)
+## Environment Variables
+- `SPRING_DATASOURCE_URL`: Connection string to PostgreSQL (e.g., `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/user_db`)
+- `SPRING_DATASOURCE_USERNAME`: Database user
+- `SPRING_DATASOURCE_PASSWORD`: Database password
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry Traces export endpoint (e.g., `http://otel-collector.observability.svc:4317`)
+
+## How to Run Locally (Without Docker/K8s)
 ```bash
-# 1. Đảm bảo bạn đã có PostgreSQL chạy ở cổng 5432
+# 1. Ensure PostgreSQL is running on port 5432
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/user_db
 export SPRING_DATASOURCE_USERNAME=food_user
 export SPRING_DATASOURCE_PASSWORD=food_password
 
-# 2. Khởi chạy với Maven
+# 2. Run with Maven
 ./mvnw spring-boot:run
 ```

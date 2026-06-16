@@ -1,29 +1,34 @@
 # Order Service
 
-## Mục Đích (Bounded Context)
-Order Service là thành phần trung tâm của hệ thống. Nó chịu trách nhiệm nhận đơn hàng từ khách hàng, lưu trữ trạng thái đơn hàng và **đóng vai trò là Saga Orchestrator** để điều phối quy trình thanh toán (Payment Service) và giao hàng (Dispatch Service).
+## Purpose (Bounded Context)
+Order Service is the central orchestrator of the system. It receives orders from customers, manages the order state, and **acts as the Saga Orchestrator** to coordinate the payment process (Payment Service) and the delivery process (Dispatch Service).
 
-## Cấu trúc Thư mục (Hexagonal Architecture)
-Service này tuân thủ nghiêm ngặt **Kiến trúc Lục giác (Ports & Adapters)** để tách biệt Core Logic khỏi Infrastructure.
+## Directory Structure (Hexagonal Architecture)
+This service strictly adheres to **Hexagonal Architecture (Ports & Adapters)** to isolate Core Logic from Infrastructure details.
 
-- `domain/`: Chứa nghiệp vụ lõi (Entities, Value Objects). Tuyệt đối không phụ thuộc vào Spring Framework, REST, hay Kafka.
-- `domain/port/inbound`: Các interface mô tả Use Case (e.g. `CreateOrderUseCase`).
-- `domain/port/outbound`: Các interface mô tả Infrastructure cần thiết (e.g. `OrderRepository`, `EventPublisher`).
-- `application/`: Cài đặt các Use Case.
-- `adapter/inbound/`: Các Controller (REST, Kafka Listener) nhận request từ bên ngoài vào.
-- `adapter/outbound/`: Cài đặt chi tiết thao tác với DB, Kafka, REST Client.
+- `domain/`: Contains core business logic (Entities, Value Objects). Absolutely no dependencies on the Spring Framework, REST, or Kafka.
+- `domain/port/inbound`: Interfaces describing Use Cases (e.g., `CreateOrderUseCase`).
+- `domain/port/outbound`: Interfaces describing required Infrastructure (e.g., `OrderRepository`, `EventPublisher`).
+- `application/`: Implementations of the Use Cases.
+- `adapter/inbound/`: Controllers (REST, Kafka Listeners) receiving external requests.
+- `adapter/outbound/`: Detailed implementations interacting with DB, Kafka, REST Clients.
 
-## Patterns được áp dụng
-- **Saga Orchestration:** Order Service quản lý State Machine của đơn hàng.
-- **Transactional Outbox:** Lưu DB và phát hành event vào bảng `outbox_events` để đảm bảo tính nguyên tử (Atomicity). Outbox worker sẽ quét và đẩy vào Kafka.
+## Applied Patterns
+- **Saga Orchestration:** Order Service manages the Order State Machine.
+- **Transactional Outbox:** Saves data to the DB and publishes an event to the `outbox_events` table simultaneously to guarantee Atomicity. A background outbox worker polls this table and pushes to Kafka.
 
-## Biến Môi Trường (Environment Variables)
-- `SPRING_DATASOURCE_URL`: (vd: `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/order_db`)
-- `KAFKA_BOOTSTRAP_SERVERS`: (vd: `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
-- `RESTAURANT_SERVICE_URL`: Base URL nội bộ của Restaurant Service.
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Cấu hình OpenTelemetry.
+## OpenAPI / Swagger Documentation
+API documentation is automatically generated. When the service is running, you can view the Swagger UI at:
+- **Swagger UI:** `http://localhost:8003/swagger-ui/index.html` (Assuming port 8003 for Order Service)
+- **OpenAPI JSON:** `http://localhost:8003/v3/api-docs`
 
-## Cách chạy Local
+## Environment Variables
+- `SPRING_DATASOURCE_URL`: (e.g., `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/order_db`)
+- `KAFKA_BOOTSTRAP_SERVERS`: (e.g., `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
+- `RESTAURANT_SERVICE_URL`: Internal Base URL of the Restaurant Service.
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry configuration.
+
+## How to Run Locally
 ```bash
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/order_db
 export KAFKA_BOOTSTRAP_SERVERS=localhost:9092

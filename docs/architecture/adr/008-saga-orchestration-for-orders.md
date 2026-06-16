@@ -1,18 +1,18 @@
-# ADR 008: Saga Orchestration cho Order Flow
+# ADR 008: Saga Orchestration for Order Flow
 
 ## Context
-Quá trình xử lý đơn hàng trải dài qua nhiều microservices: Order Service -> Payment Service -> Dispatch Service. Việc dùng REST call trực tiếp sẽ tạo ra tightly coupled system và khó xử lý khi một bước thất bại (cần rollback).
+The order processing flow spans multiple microservices: Order Service -> Payment Service -> Dispatch Service. Using direct REST calls would create a tightly coupled system and make it difficult to handle failures (requiring rollbacks) at any step.
 
 ## Decision
-Áp dụng **Saga Pattern (Orchestration-based)**.
-- **Order Service** đóng vai trò là Orchestrator.
-- Khi tạo đơn hàng, Order ở trạng thái `CREATED`.
-- Order Service phát hành event `OrderCreated`.
-- Payment Service lắng nghe, xử lý thanh toán và phát event `PaymentCompleted` hoặc `PaymentFailed`.
-- Order Service lắng nghe event từ Payment, nếu thành công thì tiếp tục phát `OrderPaid` để Dispatch Service xử lý.
-- Nếu một bước thất bại, Order Service sẽ gửi các Command bồi hoàn (Compensating Commands) để rollback các bước trước.
+Apply the **Saga Pattern (Orchestration-based)**.
+- **Order Service** acts as the Orchestrator.
+- When an order is created, its state is `CREATED`.
+- Order Service publishes an `OrderCreated` event.
+- Payment Service listens, processes the payment, and publishes either a `PaymentCompleted` or `PaymentFailed` event.
+- Order Service listens to the payment event. If successful, it proceeds to publish an `OrderPaid` event for the Dispatch Service.
+- If any step fails, Order Service will issue Compensating Commands to rollback the preceding steps.
 
 ## Consequences
-- Order Service phức tạp hơn vì chứa state machine cho Saga.
-- Giảm thiểu sự phụ thuộc trực tiếp (loose coupling) giữa các service.
-- Xử lý distributed transaction an toàn.
+- Order Service becomes more complex as it manages the state machine for the Saga.
+- Reduces direct dependencies (promotes loose coupling) between services.
+- Safely handles distributed transactions across the system.

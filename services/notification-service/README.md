@@ -1,26 +1,31 @@
 # Notification Service
 
-## Mục Đích (Bounded Context)
-Notification Service được viết bằng Node.js (TypeScript). Service này có nhiệm vụ lắng nghe các Event từ Kafka (như `OrderCreated`, `OrderPaid`, `DriverAssigned`, `DriverPickedUp`) và đẩy thông báo Real-time (Thời gian thực) về cho Client của khách hàng thông qua công nghệ **Server-Sent Events (SSE)**.
+## Purpose (Bounded Context)
+Notification Service is written in Node.js (TypeScript). This service is responsible for listening to Events from Kafka (such as `OrderCreated`, `OrderPaid`, `DriverAssigned`, `DriverPickedUp`) and pushing Real-time notifications to the customer's Client using **Server-Sent Events (SSE)**.
 
-## Công nghệ & Kiến trúc
-- **Ngôn ngữ:** Node.js 20, TypeScript.
-- **Framework:** Express.js cho API và SSE connections.
-- **Messaging:** `kafkajs` để làm Consumer.
-- **Cấu trúc thư mục:**
-  - `src/kafka/`: Xử lý Kafka events.
-  - `src/sse/`: Quản lý danh sách các SSE Clients đang kết nối.
+## Technology & Architecture
+- **Language:** Node.js 20, TypeScript.
+- **Framework:** Express.js for the API and SSE connections.
+- **Messaging:** `kafkajs` for the Kafka Consumer.
+- **Directory Structure:**
+  - `src/kafka/`: Processes Kafka events.
+  - `src/sse/`: Manages the list of active SSE Clients.
   - `src/controllers/`: HTTP Controllers.
 
-## Patterns được áp dụng
-- **Event-Driven UI (Server-Sent Events):** SSE là lựa chọn hoàn hảo và nhẹ nhàng hơn WebSocket đối với ứng dụng chỉ cần luồng dữ liệu 1 chiều từ Server -> Client (như cập nhật trạng thái đơn hàng).
+## Applied Patterns
+- **Event-Driven UI (Server-Sent Events):** SSE is a perfect, lightweight alternative to WebSockets for applications that only require a unidirectional data flow from Server -> Client (such as pushing order status updates).
 
-## Biến Môi Trường (Environment Variables)
-- `PORT`: Cổng chạy HTTP server (mặc định 8080).
-- `KAFKA_BROKERS`: (vd: `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Endpoint OpenTelemetry.
+## OpenAPI / Swagger Documentation
+API documentation is automatically generated. When the service is running, you can view the Swagger UI at:
+- **Swagger UI:** `http://localhost:8006/api-docs` (Assuming port 8006 for Notification Service)
+- **OpenAPI JSON:** `http://localhost:8006/api-docs-json`
 
-## Cách chạy Local
+## Environment Variables
+- `PORT`: HTTP server port (default 8080).
+- `KAFKA_BROKERS`: (e.g., `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry configuration.
+
+## How to Run Locally
 ```bash
 export KAFKA_BROKERS=localhost:9092
 export PORT=8006

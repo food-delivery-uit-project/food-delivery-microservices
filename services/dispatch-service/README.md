@@ -1,29 +1,34 @@
 # Dispatch Service
 
-## Mục Đích (Bounded Context)
-Dispatch Service được viết bằng Golang, chịu trách nhiệm quản lý vị trí trực tuyến của các tài xế và ghép cuốc (Matching) giữa đơn hàng và tài xế gần nhất. 
+## Purpose (Bounded Context)
+Dispatch Service is written in Golang and is responsible for managing the online status and locations of drivers, as well as Matching algorithms to pair an order with the closest available driver.
 
-## Công nghệ & Kiến trúc
-- **Ngôn ngữ:** Go 1.22
-- **Cơ sở dữ liệu chính:** Redis (sử dụng Geospatial Index `GEOADD`, `GEORADIUS` để tìm kiếm tài xế trong bán kính).
-- **Kiến trúc mã nguồn:** Idiomatic Go (Clean Architecture cơ bản).
-  - `cmd/`: Chứa file `main.go`.
-  - `internal/domain/`: Entities và logic cốt lõi.
-  - `internal/matching/`: Thuật toán ghép cuốc xe.
-  - `internal/repository/`: Thao tác với Redis.
-  - `internal/service/`: Application logic và điều phối.
-  - `internal/kafka/`: Kafka consumer và producer.
+## Technology & Architecture
+- **Language:** Go 1.22
+- **Primary Database:** Redis (uses Geospatial Indexing `GEOADD`, `GEORADIUS` to search for drivers within a radius).
+- **Source Code Architecture:** Idiomatic Go (Basic Clean Architecture).
+  - `cmd/`: Contains the `main.go` file.
+  - `internal/domain/`: Entities and core logic.
+  - `internal/matching/`: Driver matching algorithms.
+  - `internal/repository/`: Redis operations.
+  - `internal/service/`: Application orchestration logic.
+  - `internal/kafka/`: Kafka consumers and producers.
 
-## Patterns được áp dụng
-- **Geospatial Queries:** Dùng Redis để tối ưu tốc độ tìm kiếm khoảng cách.
-- **Redis Stream Outbox:** Khắc phục lỗi Dual-Write trong môi trường NoSQL bằng cách sử dụng Lua Scripts để cập nhật State và tạo Event (`XADD`) trong cùng một Atomic Transaction. Một Goroutine sẽ làm Relay đọc stream và publish sang Kafka.
+## Applied Patterns
+- **Geospatial Queries:** Uses Redis to optimize distance-based search speed.
+- **Redis Stream Outbox:** Solves the Dual-Write problem in a NoSQL environment by using Lua Scripts to update the State and create an Event (`XADD`) within a single Atomic Transaction. A Goroutine acts as a Relay, reading the stream and publishing to Kafka safely.
 
-## Biến Môi Trường (Environment Variables)
-- `REDIS_URL`: (vd: `redis:6379`)
-- `KAFKA_BROKERS`: (vd: `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Endpoint xuất OpenTelemetry.
+## OpenAPI / Swagger Documentation
+API documentation is automatically generated. When the service is running, you can view the Swagger UI at:
+- **Swagger UI:** `http://localhost:8005/swagger/index.html` (Assuming port 8005 for Dispatch Service)
+- **OpenAPI JSON:** `http://localhost:8005/swagger/doc.json`
 
-## Cách chạy Local
+## Environment Variables
+- `REDIS_URL`: Connection string to Redis (e.g., `food-delivery-redis-master.databases.svc.cluster.local:6379`)
+- `KAFKA_BROKERS`: Kafka broker list (e.g., `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry configuration.
+
+## How to Run Locally
 ```bash
 export REDIS_URL=localhost:6379
 export KAFKA_BROKERS=localhost:9092

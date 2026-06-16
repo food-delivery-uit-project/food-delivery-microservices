@@ -1,15 +1,16 @@
-# ADR 009: Distributed Tracing với OpenTelemetry
+# ADR 009: Distributed Tracing with OpenTelemetry
 
 ## Context
-Hệ thống microservices gồm 6 services viết bằng nhiều ngôn ngữ khác nhau (Java, Go, Node.js) và giao tiếp qua HTTP/REST, gRPC, và Kafka. Việc theo dõi lỗi và độ trễ (latency) của một request xuyên suốt hệ thống rất khó khăn.
+The microservices architecture consists of 6 services written in multiple languages (Java, Go, Node.js) and communicates via HTTP/REST, gRPC, and Kafka. Tracking errors and request latency across the entire system without a central tracing strategy is extremely difficult.
 
 ## Decision
-Áp dụng **OpenTelemetry (OTel)** làm chuẩn duy nhất cho Distributed Tracing.
-- Sử dụng W3C Trace Context để truyền TraceID và SpanID qua HTTP Headers và Kafka Headers.
-- OTel SDK được cấu hình trên tất cả 6 services (Spring Boot Starter OTel, Go OTel SDK, Node.js OTel SDK).
-- Toàn bộ trace data được export về OTel Collector qua giao thức OTLP/gRPC.
-- OTel Collector đẩy dữ liệu về Jaeger để trực quan hóa.
+Adopt **OpenTelemetry (OTel)** as the single standard for Distributed Tracing.
+- Use W3C Trace Context to propagate `TraceID` and `SpanID` via HTTP Headers, Kafka Headers, and Redis Streams (for the outbox pattern).
+- OTel SDK is configured across all 6 services (Spring Boot Starter OTel, Go OTel SDK, Node.js OTel SDK).
+- All trace data is exported to the OTel Collector via the OTLP/gRPC protocol.
+- OTel Collector pushes the data to Jaeger for visualization.
 
 ## Consequences
-- Khả năng Observability vượt trội.
-- Tăng đôi chút payload size (headers) trên các request.
+- Exceptional observability, eliminating blind spots across polyglot microservices.
+- Safely maintains context propagation even through complex asynchronous boundaries like Kafka queues and Redis Stream Relays.
+- Slightly increases the payload size (headers) on requests and events.

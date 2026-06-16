@@ -1,25 +1,30 @@
 # Payment Service
 
-## Mục Đích (Bounded Context)
-Payment Service chịu trách nhiệm xử lý các giao dịch thanh toán. Nó nhận yêu cầu thanh toán (thông qua Kafka Message từ Order Service) và tương tác với cổng thanh toán (mock).
+## Purpose (Bounded Context)
+Payment Service handles financial transactions. It receives payment requests (via Kafka Messages from the Order Service) and interacts with an external payment gateway (mocked).
 
-## Cấu trúc Thư mục (Hexagonal Architecture)
-Tương tự Order Service, Payment Service sử dụng **Hexagonal Architecture**.
-- `domain`: Trạng thái và logic giao dịch.
-- `application`: Use cases thanh toán.
-- `adapter/inbound`: Nhận sự kiện `OrderCreated` từ Kafka.
-- `adapter/outbound`: Ghi vào DB, xuất event (Outbox), gọi tới Payment Gateway giả lập.
+## Directory Structure (Hexagonal Architecture)
+Similar to the Order Service, the Payment Service uses **Hexagonal Architecture**.
+- `domain`: Transaction state and business logic.
+- `application`: Payment use cases.
+- `adapter/inbound`: Consumes `OrderCreated` events from Kafka.
+- `adapter/outbound`: Writes to the DB, publishes events (via Outbox), and calls the mocked Payment Gateway.
 
-## Patterns được áp dụng
-- **Saga Participant:** Payment Service không điều phối, mà chỉ phản hồi sự kiện từ Orchestrator. Nó lắng nghe lệnh thanh toán và trả về kết quả `PaymentCompleted` hoặc `PaymentFailed`.
-- **Transactional Outbox:** Tương tự Order Service, lưu DB và event nguyên tử.
+## Applied Patterns
+- **Saga Participant:** Payment Service does not orchestrate; it merely responds to events from the Orchestrator. It listens for payment commands and returns either a `PaymentCompleted` or `PaymentFailed` result.
+- **Transactional Outbox:** Similar to Order Service, it ensures atomic database writes and event publishing.
 
-## Biến Môi Trường (Environment Variables)
-- `SPRING_DATASOURCE_URL`: (vd: `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/payment_db`)
-- `KAFKA_BOOTSTRAP_SERVERS`: (vd: `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Cấu hình OpenTelemetry.
+## OpenAPI / Swagger Documentation
+API documentation is automatically generated. When the service is running, you can view the Swagger UI at:
+- **Swagger UI:** `http://localhost:8004/swagger-ui/index.html` (Assuming port 8004 for Payment Service)
+- **OpenAPI JSON:** `http://localhost:8004/v3/api-docs`
 
-## Cách chạy Local
+## Environment Variables
+- `SPRING_DATASOURCE_URL`: (e.g., `jdbc:postgresql://postgres.databases.svc.cluster.local:5432/payment_db`)
+- `KAFKA_BOOTSTRAP_SERVERS`: (e.g., `food-delivery-kafka-kafka-bootstrap.kafka.svc:9092`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry configuration.
+
+## How to Run Locally
 ```bash
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/payment_db
 export KAFKA_BOOTSTRAP_SERVERS=localhost:9092

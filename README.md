@@ -241,7 +241,7 @@ make health-check         # Health check all services
 | Pattern | Where Applied |
 |---------|--------------|
 | Hexagonal Architecture (Ports & Adapters) | Order Service, Payment Service |
-| Saga (Choreography-based) | Order → Payment → Restaurant → Dispatch flow |
+| Saga (Orchestration-based) | Order → Payment → Restaurant → Dispatch flow (Order Service is Orchestrator) |
 | Transactional Outbox | Order Service (Kafka reliability) |
 | Circuit Breaker | Order → Restaurant/User REST calls |
 | Event Sourcing (partial) | Order status via Kafka events |
@@ -249,6 +249,7 @@ make health-check         # Health check all services
 | HPA + PDB | All K8s services (autoscaling + zero-downtime) |
 | Distributed Tracing | OTel Java Agent + Go instrumentation → Jaeger |
 | Structured Logging | JSON logs from all services → Loki |
+| OpenAPI / Swagger | Automatically generated API docs for all services |
 
 ## License
 

@@ -1,15 +1,15 @@
-# ADR 010: Sử dụng Redis Stream làm Outbox cho Dispatch Service
+# ADR 010: Using Redis Streams as Outbox for Dispatch Service
 
 ## Context
-Dispatch Service (Golang) sử dụng Redis làm DB chính để phục vụ tính năng Geospatial Matching tốc độ cao (`GEOADD`, `GEORADIUS`). Tuy nhiên, Redis không hỗ trợ cơ chế Transaction ACID với nhiều bảng như PostgreSQL, dẫn đến lỗi Dual-Write khi muốn cập nhật trạng thái tài xế và publish event sang Kafka.
+Dispatch Service (Golang) uses Redis as its primary database to provide high-speed Geospatial Matching (`GEOADD`, `GEORADIUS`). However, Redis does not support multi-table ACID Transactions like PostgreSQL, leading to a Dual-Write problem when attempting to update driver statuses and publish events to Kafka simultaneously.
 
 ## Decision
-Áp dụng kiến trúc **Lua Script + Redis Streams**.
-- Cập nhật trạng thái (Key-Value/Hash) và tạo event (`XADD`) vào Redis Stream được gói gọn trong một Lua Script. Redis thực thi Lua Script dưới dạng Atomic Transaction.
-- Một Background Worker (Go Routine) đóng vai trò Relay, đọc dữ liệu từ Stream (sử dụng Consumer Groups) và publish tới Kafka.
-- Sau khi publish thành công, Relay gọi lệnh `XACK` để xác nhận.
+Adopt the **Lua Script + Redis Streams** architecture.
+- Status updates (Key-Value/Hash) and event creation (`XADD`) into a Redis Stream are encapsulated within a single Lua Script. Redis executes the Lua Script as an Atomic Transaction.
+- A Background Worker (Go Routine) acts as a Relay, consuming data from the Stream (using Consumer Groups) and publishing it to Kafka safely.
+- After successfully publishing, the Relay executes an `XACK` command to acknowledge the message.
 
 ## Consequences
-- Giải quyết dứt điểm lỗi Dual-Write trong Dispatch Service.
-- Giữ nguyên được hiệu năng cao của Redis.
-- Tăng độ phức tạp của Dispatch Service (cần quản lý Redis Stream và Consumer Group).
+- Completely resolves the Dual-Write issue within the Dispatch Service.
+- Preserves the high performance and low latency characteristics of Redis.
+- Increases the complexity of the Dispatch Service slightly (requires managing Redis Streams and Consumer Groups).

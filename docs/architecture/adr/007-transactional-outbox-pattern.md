@@ -1,15 +1,15 @@
-# ADR 007: Transactional Outbox Pattern cho các Microservices (Java)
+# ADR 007: Transactional Outbox Pattern for Microservices (Java)
 
 ## Context
-Trong kiến trúc Event-Driven, các service (Order, Payment, User, Restaurant) cần thực hiện ghi dữ liệu vào CSDL (PostgreSQL) và phát hành sự kiện (publish event) vào Kafka. Nếu thực hiện 2 thao tác này độc lập (Dual-Write), hệ thống có nguy cơ mất đồng bộ dữ liệu (VD: lưu DB thành công nhưng Kafka sập).
+In an Event-Driven Architecture, services (Order, Payment, User, Restaurant) need to write data to the database (PostgreSQL) and publish events to Kafka. If these two operations are performed independently (Dual-Write), the system is at risk of data inconsistency (e.g., saving to DB succeeds but Kafka crashes).
 
 ## Decision
-Sử dụng **Transactional Outbox Pattern**.
-- Tất cả các service Java sử dụng PostgreSQL.
-- Mỗi lần có thay đổi trạng thái quan trọng, hệ thống sẽ lưu Domain Entity và một Outbox Event vào bảng `outbox_events` trong cùng một Database Transaction.
-- Một tiến trình chạy ngầm (Spring `@Scheduled` hoặc Debezium CDC) sẽ đọc bảng `outbox_events` và đẩy thông báo sang Kafka. Nếu đẩy thành công, đánh dấu/xoá event. Đảm bảo **At-Least-Once Delivery**.
+Use the **Transactional Outbox Pattern**.
+- All Java services use PostgreSQL.
+- Every time a significant state change occurs, the system saves the Domain Entity and an Outbox Event to the `outbox_events` table within the same Database Transaction.
+- A background process (Spring `@Scheduled` or Debezium CDC) polls the `outbox_events` table and pushes the messages to Kafka. If successful, the event is marked as published or deleted. This ensures **At-Least-Once Delivery**.
 
 ## Consequences
-- Tăng tính toàn vẹn dữ liệu. Không còn tình trạng sai lệch giữa DB và Kafka.
-- Tăng độ trễ (latency) khi phát event do phải chờ background worker quét bảng.
-- Consumer phải thiết kế theo chuẩn Idempotent để xử lý duplicate events.
+- Increases data integrity. No more data discrepancies between DB and Kafka.
+- Increases latency when publishing events due to waiting for the background worker to poll the table.
+- Consumers must be designed to be Idempotent to handle duplicate events safely.
