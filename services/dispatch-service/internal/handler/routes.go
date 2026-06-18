@@ -27,7 +27,7 @@ func RegisterRoutes(mux *http.ServeMux, svc *service.DispatchService, driverRepo
 	})
 	mux.HandleFunc("GET /api-docs/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(`
+		_, _ = w.Write([]byte(`
 <!DOCTYPE html>
 <html>
   <head>
