@@ -1,8 +1,14 @@
+import { initTelemetry } from './telemetry';
+// Initialize telemetry before anything else
+initTelemetry();
+
 import Fastify from 'fastify';
 import { KafkaConsumer } from './kafka/consumer';
 import { SSEManager } from './sse/manager';
 import { config } from './config';
 import { registerSSERoutes } from './sse/handler';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 
 const isProduction = config.nodeEnv === 'production';
 
@@ -17,6 +23,21 @@ const app = Fastify({
 });
 
 const sseManager = new SSEManager();
+
+// Register Swagger
+app.register(swagger, {
+  openapi: {
+    info: {
+      title: 'Notification Service API',
+      description: 'API documentation for Notification Service',
+      version: '1.0.0',
+    },
+  },
+});
+
+app.register(swaggerUi, {
+  routePrefix: '/swagger-ui',
+});
 
 // Health check endpoints
 app.get('/health/live', async () => ({ status: 'UP' }));

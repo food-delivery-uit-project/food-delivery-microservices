@@ -3,25 +3,25 @@
 ## 1. Testing Pyramid
 
 ```
-        ╱  E2E  ╲           ← Ít nhất, chạy chậm nhất
+        ╱  E2E  ╲           ← Fewest, slowest to run
        ╱---------╲
-      ╱ Integration╲        ← Trung bình
+      ╱ Integration╲        ← Medium
      ╱--------------╲
-    ╱   Unit Tests    ╲     ← Nhiều nhất, chạy nhanh nhất
+    ╱   Unit Tests    ╲     ← Most, fastest to run
    ╱-------------------╲
 ```
 
 | Level           | Target                                               | Tools                                               | Coverage Target                             |
 | --------------- | ---------------------------------------------------- | --------------------------------------------------- | ------------------------------------------- |
-| **Unit**        | Domain logic, business rules, algorithms             | JUnit 5 + Mockito (Java), go test (Go), Jest (Node) | **≥ 80%** cho domain/service layers         |
-| **Integration** | DB queries, Kafka produce/consume, REST client calls | Testcontainers (real DB/Kafka in Docker)            | Tất cả repository methods + Kafka consumers |
-| **E2E**         | Full order flow qua nhiều services                   | Python script + HTTP calls                          | Happy path + 2 failure paths                |
+| **Unit**        | Domain logic, business rules, algorithms             | JUnit 5 + Mockito (Java), go test (Go), Jest (Node) | **≥ 80%** for domain/service layers         |
+| **Integration** | DB queries, Kafka produce/consume, REST client calls | Testcontainers (real DB/Kafka in Docker)            | All repository methods + Kafka consumers    |
+| **E2E**         | Full order flow across multiple services             | Python script + HTTP calls                          | Happy path + Failure paths + Mock Driver    |
 
 ## 2. Unit Testing
 
 ### Java - Hexagonal Services (Order, Payment)
 
-Domain layer test **KHÔNG cần Spring Context** — chạy < 1 giây:
+Domain layer tests **DO NOT need Spring Context** — run in < 1 second:
 
 ```java
 // domain/service/OrderDomainServiceTest.java
@@ -42,7 +42,7 @@ class OrderDomainServiceTest {
 }
 ```
 
-Application layer test với **mocked ports**:
+Application layer tests with **mocked ports**:
 
 ```java
 // application/CreateOrderApplicationServiceTest.java
@@ -128,13 +128,13 @@ describe("OrderEventHandler", () => {
 
 ## 3. Integration Testing (Testcontainers)
 
-Mỗi service dùng Testcontainers để spin up real DB/Kafka trong Docker:
+Each service uses Testcontainers to spin up real DB/Kafka instances in Docker:
 
-Lưu ý quan trọng khi chạy local:
+Important notes when running locally:
 
--   Testcontainers yêu cầu Docker daemon đang chạy.
--   Một số test Spring có thể in Kafka Admin warning/error log trong giai đoạn bootstrap topic.
--   Kết luận pass/fail phải dựa vào tổng kết Maven/JUnit cuối cùng (`Failures: 0, Errors: 0`), không dựa vào một dòng warning lẻ.
+-   Testcontainers requires the Docker daemon to be running.
+-   Some Spring tests may print Kafka Admin warning/error logs during the topic bootstrap phase.
+-   The final pass/fail conclusion must be based on the Maven/JUnit summary (`Failures: 0, Errors: 0`), not on a single warning log line.
 
 ### Java
 
@@ -211,3 +211,10 @@ cd services/notification-service && npm run test:coverage
 | Integration Tests            | All pass    | Block merge                      |
 | Code Coverage (domain layer) | ≥ 80%       | Warning (not blocking initially) |
 | Lint                         | Zero errors | Block merge                      |
+
+## 6. End-to-End (E2E) Testing
+
+The E2E testing strategy uses a Python script (`test_e2e.py`) to simulate the full user journey:
+- Simulates a customer placing an order.
+- Mock Driver validation: Simulates a driver accepting and fulfilling the order.
+- SSE Validation: Listens to the Notification Service via Server-Sent Events to verify real-time state updates across the entire saga flow.

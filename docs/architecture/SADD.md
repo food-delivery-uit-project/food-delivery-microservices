@@ -92,15 +92,15 @@ graph TD
 ## 1.4 Communication Patterns
 
 ### Synchronous (Request-Response)
-- **Client → Gateway:** REST over HTTPS (JSON). Mọi thao tác user-facing.
-- **Service → Service (Query):** Internal REST qua K8s Service DNS (VD: `http://restaurant-service:8080/api/internal/...`). Dùng khi Service A cần query data từ Service B ngay lập tức.
+- **Client → Gateway:** REST over HTTPS (JSON). All user-facing operations.
+- **Service → Service (Query):** Internal REST via K8s Service DNS (e.g., `http://restaurant-service:8080/api/internal/...`). Used when Service A needs to query data from Service B immediately.
 
 ### Asynchronous (Event-Driven)
-- **Service → Service (State Change):** Kafka Events. Dùng khi một sự kiện nghiệp vụ xảy ra và các service khác cần phản ứng.
+- **Service → Service (State Change):** Kafka Events. Used when a business event occurs and other services need to react.
 
 ### Real-time (Push to Client)
-- **Server-Sent Events (SSE):** Customer theo dõi trạng thái đơn hàng (unidirectional, đơn giản).
-- **WebSocket:** Driver gửi GPS coordinates liên tục lên Dispatch Service (bidirectional).
+- **Server-Sent Events (SSE):** Customer tracks order status (unidirectional, simple).
+- **WebSocket:** Driver sends GPS coordinates continuously to Dispatch Service (bidirectional).
 
 | Pattern | Protocol | Use Case | Latency |
 |---------|----------|----------|---------|
@@ -192,11 +192,11 @@ Each microservice has a different level of business complexity, therefore we app
 
 | Service | Complexity | Pattern | Reason |
 |---------|-----------|---------|------------|
-| Order Service | **Cao** (State Machine, Saga, Outbox) | **Hexagonal (Ports & Adapters)** | Domain logic phức tạp cần tách biệt khỏi infra. Testable 100% không cần Spring Context |
-| Payment Service | **Trung bình-Cao** (Compensating Tx, External Provider) | **Hexagonal (Ports & Adapters)** | Payment provider có thể thay đổi (Stripe→VNPay). Port pattern cho phép swap adapter dễ dàng |
+| Order Service | **High** (State Machine, Saga, Outbox) | **Hexagonal (Ports & Adapters)** | Complex domain logic separated from infra. 100% testable without Spring Context |
+| Payment Service | **Medium-High** (Compensating Tx, External Provider) | **Hexagonal (Ports & Adapters)** | Payment provider can change (Stripe→Mock). Port pattern allows easy adapter swapping |
 | User Service | **Low** (CRUD + Auth) | **Simplified Layered** | Simple logic, Spring Security handles the complex parts. Hexagonal would be over-engineering |
-| Restaurant Service | **Thấp** (CRUD + JSONB) | **Simplified Layered** | Chủ yếu là CRUD operations trên menu data |
-| Dispatch Service | **Trung bình** (Matching Algorithm) | **Idiomatic Go (Clean separation)** | Go conventions với matching algorithm tách riêng thành pure functions |
+| Restaurant Service | **Low** (CRUD + JSONB) | **Simplified Layered** | Mostly CRUD operations on menu data |
+| Dispatch Service | **Medium** (Matching Algorithm) | **Idiomatic Go (Clean separation)** | Go conventions with matching algorithm separated into pure functions |
 | Notification Service | **Low** (Consume → Push) | **Simple Modular** | Very simple, does not need complex architecture |
 
 ### Hexagonal Architecture (Order & Payment Services)
@@ -334,14 +334,14 @@ CREATE TABLE driver_profiles (
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|--------|
-| POST | `/api/v1/auth/register` | Public | Đăng ký |
-| POST | `/api/v1/auth/login` | Public | Đăng nhập, trả JWT |
+| POST | `/api/v1/auth/register` | Public | Register |
+| POST | `/api/v1/auth/login` | Public | Login, returns JWT |
 | POST | `/api/v1/auth/refresh` | Public | Refresh token |
-| GET | `/api/v1/users/me` | Bearer | Lấy profile |
-| PUT | `/api/v1/users/me` | Bearer | Cập nhật profile |
-| GET | `/api/v1/users/me/addresses` | Bearer | Danh sách địa chỉ |
-| POST | `/api/v1/users/me/addresses` | Bearer | Thêm địa chỉ |
-| **GET** | **`/api/internal/users/{id}`** | **Internal** | **Order Service gọi** |
+| GET | `/api/v1/users/me` | Bearer | Get profile |
+| PUT | `/api/v1/users/me` | Bearer | Update profile |
+| GET | `/api/v1/users/me/addresses` | Bearer | List addresses |
+| POST | `/api/v1/users/me/addresses` | Bearer | Add address |
+| **GET** | **`/api/internal/users/{id}`** | **Internal** | **Called by Order Service** |
 
 ---
 
@@ -426,12 +426,12 @@ CREATE TABLE menu_items (
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|--------|
 | GET | `/api/v1/restaurants` | Public | List/Search |
-| GET | `/api/v1/restaurants/{id}` | Public | Chi tiết |
+| GET | `/api/v1/restaurants/{id}` | Public | Details |
 | GET | `/api/v1/restaurants/{id}/menu` | Public | Menu |
-| POST | `/api/v1/restaurants` | Owner | Tạo mới |
-| PUT | `/api/v1/restaurants/{id}/menu` | Owner | Cập nhật menu |
-| PATCH | `/api/v1/restaurants/{id}/status` | Owner | Đóng/mở |
-| **POST** | **`/api/internal/restaurants/{id}/validate-items`** | **Internal** | **Order Service gọi** |
+| POST | `/api/v1/restaurants` | Owner | Create new |
+| PUT | `/api/v1/restaurants/{id}/menu` | Owner | Update menu |
+| PATCH | `/api/v1/restaurants/{id}/status` | Owner | Open/close |
+| **POST** | **`/api/internal/restaurants/{id}/validate-items`** | **Internal** | **Called by Order Service** |
 
 ---
 
@@ -574,13 +574,13 @@ CREATE TABLE outbox_events (
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|--------|
-| POST | `/api/v1/orders` | Customer | Tạo đơn |
-| GET | `/api/v1/orders/{id}` | Bearer | Chi tiết |
-| GET | `/api/v1/orders` | Bearer | Lịch sử |
-| PATCH | `/api/v1/orders/{id}/cancel` | Customer | Hủy |
+| POST | `/api/v1/orders` | Customer | Create order |
+| GET | `/api/v1/orders/{id}` | Bearer | Order details |
+| GET | `/api/v1/orders` | Bearer | Order history |
+| PATCH | `/api/v1/orders/{id}/cancel` | Customer | Cancel order |
 | PATCH | `/api/v1/orders/{id}/accept` | Owner | Restaurant confirms |
 | PATCH | `/api/v1/orders/{id}/ready` | Owner | Food is ready |
-| **GET** | **`/api/internal/orders/{id}`** | **Internal** | **Dispatch Service gọi** |
+| **GET** | **`/api/internal/orders/{id}`** | **Internal** | **Called by Dispatch Service** |
 
 ---
 
@@ -749,8 +749,8 @@ SET dispatch:order:{order_id} {driver_id} EX 3600
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|--------|
 | WebSocket | `/ws/driver/location` | Driver JWT | GPS stream (5s) |
-| GET | `/api/v1/delivery/{orderId}` | Bearer | Trạng thái + vị trí |
-| PATCH | `/api/v1/delivery/{orderId}/pickup` | Driver | Đã lấy hàng |
+| GET | `/api/v1/delivery/{orderId}` | Bearer | Delivery status + location |
+| PATCH | `/api/v1/delivery/{orderId}/pickup` | Driver | Driver picked up |
 | PATCH | `/api/v1/delivery/{orderId}/deliver` | Driver | Delivered |
 
 ---
@@ -1037,8 +1037,8 @@ graph LR
 
 | Pattern | Applied to | Description |
 |---------|---------|-------|
-| **Idempotent Consumer** | Kafka consumers | Lưu `event_id` đã xử lý, skip nếu trùng |
-| **Dead Letter Queue** | Kafka | Event fail sau N retries chuyển vào DLQ |
+| **Idempotent Consumer** | Kafka consumers | Store processed `event_id`, skip if duplicate |
+| **Dead Letter Queue** | Kafka | Failed events after N retries moved to DLQ |
 | **Circuit Breaker** | Internal REST calls | Resilience4j (Java) / custom (Go) |
 | **Retry with Backoff** | Kafka, REST | Exponential: 1s, 2s, 4s... max 5 |
 | **Timeout** | All remote calls | REST internal: 3s, Kafka publish: 5s |
@@ -1079,8 +1079,8 @@ graph LR
 | Component | Helm Chart / Operator | Notes |
 |-----------|----------------------|-------|
 | PostgreSQL | Bitnami/postgresql | 1 instance, multiple databases (user_db, order_db, etc.) |
-| Redis | Bitnami/redis | Single instance, dùng cho Geo + Cache |
-| Kafka | Strimzi Kafka Operator | 1 broker (dev), có thể scale lên 3 (prod) |
+| Redis | Bitnami/redis | Single instance, used for Geo + Cache |
+| Kafka | Strimzi Kafka Operator | 1 broker (dev), can scale to 3 (prod) |
 | Kong | Kong/ingress | Ingress Controller mode |
 
 > [!NOTE]
@@ -1102,8 +1102,8 @@ graph LR
 
 ### Health Checks (Required for all services)
 
-- **Liveness Probe:** `GET /health/live` → K8s restart nếu fail
-- **Readiness Probe:** `GET /health/ready` → K8s ngừng route traffic nếu fail
+- **Liveness Probe:** `GET /health/live` → K8s restarts pod if failed
+- **Readiness Probe:** `GET /health/ready` → K8s stops routing traffic if failed
 
 ---
 
@@ -1218,7 +1218,7 @@ Each service exposes `GET /metrics`:
 
 ### Distributed Tracing (OpenTelemetry + Jaeger)
 
-A request trace across hệ thống:
+A request trace across the system:
 
 ```
 Trace: abc123
@@ -1484,7 +1484,7 @@ food-delivery-microservices/
 | Rule | Standard |
 |------|----------|
 | Package root | `com.fooddelivery.{service}` |
-| Domain package | **KHÔNG** import Spring, JPA, Kafka. Chỉ `java.*` |
+| Domain package | **DO NOT** import Spring, JPA, Kafka. Only `java.*` |
 | Domain Model | Separate from JPA Entity. Use Mapper for conversion |
 | Business logic | Place in `domain/service/`, NOT in Application layer |
 | Use Case | One use case = 1 interface (inbound port) + 1 implementation (application)
@@ -1497,7 +1497,7 @@ food-delivery-microservices/
 | Package root | `com.fooddelivery.{service}` |
 | Layers | controller → service → repository (top-down only) |
 | Model | JPA Entity used directly, DTOs for request/response |
-| Testing | `@SpringBootTest` + Testcontainers cho integration |
+| Testing | `@SpringBootTest` + Testcontainers for integration tests |
 
 ### Go (Dispatch Service)
 

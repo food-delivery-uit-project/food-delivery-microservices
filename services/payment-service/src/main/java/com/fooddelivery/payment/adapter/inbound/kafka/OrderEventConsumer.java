@@ -51,8 +51,8 @@ public class OrderEventConsumer {
                 return;
             }
 
-            // We only process OrderCreated event
-            if ("OrderCreated".equals(type)) {
+            // We only process OrderCreatedEvent
+            if ("OrderCreatedEvent".equals(type)) {
                 JsonNode data = envelope.path("data");
                 UUID orderId = UUID.fromString(data.path("order_id").asText());
                 UUID customerId = UUID.fromString(data.path("customer_id").asText());

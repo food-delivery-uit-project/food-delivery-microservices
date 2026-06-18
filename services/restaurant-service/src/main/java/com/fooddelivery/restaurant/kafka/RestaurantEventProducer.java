@@ -2,7 +2,8 @@ package com.fooddelivery.restaurant.kafka;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.fooddelivery.restaurant.outbox.OutboxEventJpaEntity;
+import com.fooddelivery.restaurant.outbox.SpringDataOutboxRepository;
 import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,10 +13,10 @@ import java.util.UUID;
 public class RestaurantEventProducer {
 
     private static final Logger log = LoggerFactory.getLogger(RestaurantEventProducer.class);
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final SpringDataOutboxRepository outboxRepository;
 
-    public RestaurantEventProducer(KafkaTemplate<String, Object> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
+    public RestaurantEventProducer(SpringDataOutboxRepository outboxRepository) {
+        this.outboxRepository = outboxRepository;
     }
 
     public void publishOrderAccepted(UUID orderId, UUID restaurantId) {
@@ -25,33 +26,33 @@ public class RestaurantEventProducer {
         data.put("restaurant_id", restaurantId.toString());
         data.put("status", "ACCEPTED");
 
-        CloudEvent<Map<String, Object>> event = new CloudEvent<>(
-                eventId,
-                "/services/restaurant-service",
-                "OrderAccepted",
-                data
-        );
-
-        log.info("Publishing OrderAccepted event: {}", eventId);
-        kafkaTemplate.send("restaurant-events", orderId.toString(), event);
+        OutboxEventJpaEntity outboxEvent = new OutboxEventJpaEntity();
+        outboxEvent.setId(UUID.randomUUID());
+        outboxEvent.setAggregateType("Order");
+        outboxEvent.setAggregateId(orderId);
+        outboxEvent.setEventType("OrderAccepted");
+        outboxEvent.setPayload(data);
+        outboxEvent.setCreatedAt(java.time.Instant.now());
+        outboxRepository.save(outboxEvent);
     }
 
-    public void publishOrderReadyForPickup(UUID orderId, UUID restaurantId) {
+    public void publishOrderReadyForPickup(UUID orderId, UUID restaurantId, Double lat, Double lng) {
         String eventId = UUID.randomUUID().toString();
         Map<String, Object> data = new HashMap<>();
         data.put("order_id", orderId.toString());
         data.put("restaurant_id", restaurantId.toString());
+        data.put("restaurant_lat", lat);
+        data.put("restaurant_lng", lng);
         data.put("status", "READY_FOR_PICKUP");
 
-        CloudEvent<Map<String, Object>> event = new CloudEvent<>(
-                eventId,
-                "/services/restaurant-service",
-                "OrderReadyForPickup",
-                data
-        );
-
-        log.info("Publishing OrderReadyForPickup event: {}", eventId);
-        kafkaTemplate.send("restaurant-events", orderId.toString(), event);
+        OutboxEventJpaEntity outboxEvent = new OutboxEventJpaEntity();
+        outboxEvent.setId(UUID.randomUUID());
+        outboxEvent.setAggregateType("Order");
+        outboxEvent.setAggregateId(orderId);
+        outboxEvent.setEventType("OrderReadyForPickup");
+        outboxEvent.setPayload(data);
+        outboxEvent.setCreatedAt(java.time.Instant.now());
+        outboxRepository.save(outboxEvent);
     }
 
     public void publishRestaurantStatusChanged(UUID restaurantId, boolean isActive) {
@@ -60,14 +61,13 @@ public class RestaurantEventProducer {
         data.put("restaurant_id", restaurantId.toString());
         data.put("is_active", isActive);
 
-        CloudEvent<Map<String, Object>> event = new CloudEvent<>(
-                eventId,
-                "/services/restaurant-service",
-                "RestaurantStatusChanged",
-                data
-        );
-
-        log.info("Publishing RestaurantStatusChanged event: {}", eventId);
-        kafkaTemplate.send("restaurant-events", restaurantId.toString(), event);
+        OutboxEventJpaEntity outboxEvent = new OutboxEventJpaEntity();
+        outboxEvent.setId(UUID.randomUUID());
+        outboxEvent.setAggregateType("Restaurant");
+        outboxEvent.setAggregateId(restaurantId);
+        outboxEvent.setEventType("RestaurantStatusChanged");
+        outboxEvent.setPayload(data);
+        outboxEvent.setCreatedAt(java.time.Instant.now());
+        outboxRepository.save(outboxEvent);
     }
 }

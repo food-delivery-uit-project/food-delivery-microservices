@@ -12,8 +12,8 @@ import urllib.request
 import urllib.error
 
 
-USER_SERVICE_URL = "http://localhost:8001"
-RESTAURANT_SERVICE_URL = "http://localhost:8002"
+USER_SERVICE_URL = "http://localhost:8000"
+RESTAURANT_SERVICE_URL = "http://localhost:8000"
 
 SAMPLE_USERS = [
     {
@@ -188,7 +188,7 @@ def api_call(method: str, path: str, data: dict = None, token: str = None) -> di
         return {"error": True, "status": e.code}
     except urllib.error.URLError as e:
         print(f"  ❌ Connection failed: {e.reason}")
-        print("  Make sure services are running locally on port 8001 and 8002.")
+        print("  Make sure Kong Gateway is port-forwarded locally on port 8000.")
         sys.exit(1)
 
 

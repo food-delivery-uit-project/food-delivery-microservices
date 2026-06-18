@@ -15,6 +15,13 @@ import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Application Service: Processes payment transactions.
+ * <p>
+ * This acts as a Saga Participant in the Order Saga. It receives a command
+ * to process a payment, communicates with the external Payment Gateway,
+ * and publishes either a PaymentSuccessEvent or PaymentFailedEvent depending on the outcome.
+ */
 public class ProcessPaymentApplicationService implements ProcessPaymentUseCase {
 
     private final PaymentRepository paymentRepository;
@@ -29,6 +36,17 @@ public class ProcessPaymentApplicationService implements ProcessPaymentUseCase {
         this.eventPublisher = eventPublisher;
     }
 
+    /**
+     * Processes a payment for a given order.
+     * <p>
+     * This method ensures idempotency by checking if a successful payment already exists.
+     * If the payment fails at the gateway, it will be marked as failed and a failure event is published.
+     * 
+     * @param orderId the ID of the order being paid for
+     * @param customerId the ID of the customer making the payment
+     * @param amount the total amount to charge
+     * @param method the payment method (e.g. CREDIT_CARD)
+     */
     @Override
     public void processPayment(UUID orderId, UUID customerId, BigDecimal amount, PaymentMethod method) {
         Optional<Payment> existingOpt = paymentRepository.findByOrderId(orderId);

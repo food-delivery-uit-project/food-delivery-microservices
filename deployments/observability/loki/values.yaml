@@ -1,0 +1,118 @@
+## Loki Stack Helm values
+## Deploy: helm upgrade --install loki grafana/loki-stack \
+##           -n observability -f deployments/observability/loki/values.yaml
+
+loki:
+  enabled: true
+  isDefault: false
+
+  persistence:
+    enabled: true
+    size: 5Gi
+
+  config:
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+
+    common:
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+
+    schema_config:
+      configs:
+        - from: 2024-01-01
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/index
+        cache_location: /data/loki/boltdb-cache
+        shared_store: filesystem
+      filesystem:
+        directory: /data/loki/chunks
+
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h  # 7 days
+      max_entries_limit_per_query: 5000
+      retention_period: 168h
+
+    chunk_store_config:
+      max_look_back_period: 168h
+
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: 168h
+
+    compactor:
+      working_directory: /data/loki/compactor
+      shared_store: filesystem
+      compaction_interval: 5m
+
+## Promtail to collect container logs
+promtail:
+  enabled: true
+
+  config:
+    ## Scrape Kubernetes pod logs
+    snippets:
+      pipelineStages:
+        - docker: {}
+        - json:
+            expressions:
+              level: level
+              message: msg
+              trace_id: trace_id
+              service: service
+              order_id: order_id
+        - labels:
+            level:
+            service:
+        - output:
+            source: message
+
+    scrapeConfigs: |
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: drop
+            regex: "false"
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: service
+          - replacement: /var/log/pods/*$1/*.log
+            separator: /
+            source_labels:
+              - __meta_kubernetes_pod_uid
+              - __meta_kubernetes_pod_container_name
+            target_label: __path__
+          - action: replace
+            replacement: /var/log/pods/*$1/*.log
+            regex: true/(.*)
+            separator: /
+            source_labels:
+              - __meta_kubernetes_pod_annotationpresent_kubernetes_io_config_hash
+              - __meta_kubernetes_pod_annotation_kubernetes_io_config_hash
+              - __meta_kubernetes_pod_container_name
+            target_label: __path__
+
+## Grafana integration (disabled, using separate Grafana)
+grafana:
+  enabled: false

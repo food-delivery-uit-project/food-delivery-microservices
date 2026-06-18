@@ -90,3 +90,15 @@ spec:
   replicas: 1
   config:
     retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: user-events
+  labels:
+    strimzi.io/cluster: food-delivery-kafka
+spec:
+  partitions: 6
+  replicas: 1
+  config:
+    retention.ms: 604800000

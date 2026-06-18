@@ -1,43 +1,76 @@
 image:
-  repository: acrfooddelivery.azurecr.io/order-service
+  repository: ghcr.io/food-delivery-uit-project/order-service
   tag: bbac661258bf8ef919c36c049525444f6f925a18
   pullPolicy: IfNotPresent
+
 replicaCount: 1
+
 service:
   type: ClusterIP
   port: 8080
+
 resources:
   requests:
     cpu: 300m
     memory: 256Mi
   limits:
-    cpu: 500m
+    cpu: 2000m
     memory: 512Mi
+
+## HPA — Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+## PDB — Pod Disruption Budget (zero-downtime rolling updates)
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+## ServiceMonitor — Prometheus metrics scraping
+serviceMonitor:
+  enabled: true
+  path: /actuator/prometheus
+  interval: 15s
+  scrapeTimeout: 10s
+
 env:
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql.databases.svc:5432/order_db
   SPRING_DATASOURCE_USERNAME: postgres
   SPRING_KAFKA_BOOTSTRAP_SERVERS: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092
   RESTAURANT_SERVICE_URL: http://restaurant-service.food-app.svc:8080
   USER_SERVICE_URL: http://user-service.food-app.svc:8080
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger-collector.observability.svc:4317
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4317
   OTEL_SERVICE_NAME: order-service
+  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=k8s-local,service.version=1.0.0"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+
 secretEnv:
   SPRING_DATASOURCE_PASSWORD:
     secretName: db-credentials
     key: POSTGRES_PASSWORD
+
 probes:
   liveness:
     path: /actuator/health/liveness
-    initialDelaySeconds: 30
+    initialDelaySeconds: 240
     periodSeconds: 10
+    timeoutSeconds: 5
   readiness:
     path: /actuator/health/readiness
-    initialDelaySeconds: 20
-    periodSeconds: 5
+    initialDelaySeconds: 240
+    periodSeconds: 10
+    timeoutSeconds: 5
+
 ingress:
   enabled: true
   className: kong
-  annotations: {}
+  annotations:
+    konghq.com/plugins: rate-limit-api, cors-plugin
   paths:
     - path: /api/v1/orders
       pathType: Prefix

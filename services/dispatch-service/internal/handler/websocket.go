@@ -54,7 +54,7 @@ func (h *wsHandler) handleDriverWS(w http.ResponseWriter, r *http.Request) {
 		slog.Error("WebSocket upgrade failed", "error", err, "driver_id", driverID)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	slog.Info("Driver WebSocket connected", "driver_id", driverID)
 

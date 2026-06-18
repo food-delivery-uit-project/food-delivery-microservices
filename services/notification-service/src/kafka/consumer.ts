@@ -1,6 +1,9 @@
 import { Kafka, Consumer, EachMessagePayload, logLevel } from 'kafkajs';
 import { SSEManager } from '../sse/manager';
 import { CloudEvent, EventType, NotificationPayload } from '../types/events';
+import { trace, context, propagation } from '@opentelemetry/api';
+
+const tracer = trace.getTracer('notification-service-kafka');
 
 /**
  * Kafka consumer that listens to order/payment/delivery/restaurant events
@@ -46,43 +49,65 @@ export class KafkaConsumer {
   private async handleMessage({ topic, message }: EachMessagePayload): Promise<void> {
     if (!message.value) return;
 
-    try {
-      const event = JSON.parse(message.value.toString()) as CloudEvent;
-      const eventType = event.type as EventType;
-      const eventId = event.id;
-      const orderId = (event.data as Record<string, unknown>)?.order_id as string;
-
-      if (!orderId) {
-        return;
+    // Extract OpenTelemetry context from Kafka headers
+    const carrier: Record<string, string> = {};
+    if (message.headers) {
+      for (const [key, val] of Object.entries(message.headers)) {
+        if (val) carrier[key] = val.toString();
       }
+    }
+    const extractedContext = propagation.extract(context.active(), carrier);
 
-      // Idempotency check: skip duplicate events
-      if (eventId && this.processedEvents.has(eventId)) {
-        return;
-      }
+    // Create a new span for message processing
+    await tracer.startActiveSpan(`process_kafka_message ${topic}`, {}, extractedContext, async (span) => {
+      try {
+        const event = JSON.parse(message.value!.toString()) as CloudEvent;
+        const eventType = event.type as EventType;
+        const eventId = event.id;
+        const orderId = (event.data as Record<string, unknown>)?.order_id as string;
 
-      // Map event type to notification message
-      const notification = mapEventToNotification(eventType, event.data as Record<string, unknown>);
-      if (notification) {
-        this.sseManager.send(orderId, notification);
-      }
+        span.setAttribute('messaging.system', 'kafka');
+        span.setAttribute('messaging.destination', topic);
+        span.setAttribute('event.type', eventType);
+        if (orderId) span.setAttribute('order.id', orderId);
 
-      // Track processed event ID for idempotency
-      if (eventId) {
-        this.processedEvents.add(eventId);
-        // Evict oldest entries if cache grows too large
-        if (this.processedEvents.size > this.MAX_PROCESSED_CACHE) {
-          const firstKey = this.processedEvents.values().next().value;
-          if (firstKey) {
-            this.processedEvents.delete(firstKey);
+        if (!orderId) {
+          span.end();
+          return;
+        }
+
+        // Idempotency check: skip duplicate events
+        if (eventId && this.processedEvents.has(eventId)) {
+          span.end();
+          return;
+        }
+
+        // Map event type to notification message
+        const notification = mapEventToNotification(eventType, event.data as Record<string, unknown>);
+        if (notification) {
+          this.sseManager.send(orderId, notification);
+        }
+
+        // Track processed event ID for idempotency
+        if (eventId) {
+          this.processedEvents.add(eventId);
+          // Evict oldest entries if cache grows too large
+          if (this.processedEvents.size > this.MAX_PROCESSED_CACHE) {
+            const firstKey = this.processedEvents.values().next().value;
+            if (firstKey) {
+              this.processedEvents.delete(firstKey);
+            }
           }
         }
+      } catch (_err) {
+        // Log parse errors as structured JSON, but don't crash the consumer
+        const errMsg = _err instanceof Error ? _err.message : String(_err);
+        process.stderr.write(JSON.stringify({ level: 'error', msg: 'Failed to process Kafka message', topic, error: errMsg }) + '\n');
+        span.recordException(errMsg);
+      } finally {
+        span.end();
       }
-    } catch (_err) {
-      // Log parse errors as structured JSON, but don't crash the consumer
-      const errMsg = _err instanceof Error ? _err.message : String(_err);
-      process.stderr.write(JSON.stringify({ level: 'error', msg: 'Failed to process Kafka message', topic, error: errMsg }) + '\n');
-    }
+    });
   }
 }
 

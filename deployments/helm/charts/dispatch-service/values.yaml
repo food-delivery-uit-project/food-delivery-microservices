@@ -1,27 +1,66 @@
 image:
-  repository: acrfooddelivery.azurecr.io/dispatch-service
+  repository: ghcr.io/food-delivery-uit-project/dispatch-service
   tag: 1fc09188de369c2e5ffdc5b36bc499628d283595
   pullPolicy: IfNotPresent
+
 replicaCount: 1
+
 service:
   type: ClusterIP
   port: 8080
+
 resources:
-  requests: {cpu: 200m, memory: 64Mi}
-  limits: {cpu: 500m, memory: 128Mi}
+  requests:
+    cpu: 200m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+## Go service exposes metrics at /metrics (Prometheus format)
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  interval: 15s
+  scrapeTimeout: 10s
+
 env:
   SERVER_PORT: "8080"
   REDIS_ADDR: redis-master.databases.svc:6379
   KAFKA_BROKERS: food-delivery-kafka-kafka-bootstrap.kafka.svc:9092
   ORDER_SERVICE_URL: http://order-service.food-app.svc:8080
   OTEL_SERVICE_NAME: dispatch-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4317
+  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=k8s-local"
+
 probes:
-  liveness: {path: /health/live, initialDelaySeconds: 5, periodSeconds: 10}
-  readiness: {path: /health/ready, initialDelaySeconds: 5, periodSeconds: 5}
+  liveness:
+    path: /health/live
+    initialDelaySeconds: 240
+    periodSeconds: 10
+    timeoutSeconds: 5
+  readiness:
+    path: /health/ready
+    initialDelaySeconds: 240
+    periodSeconds: 10
+    timeoutSeconds: 5
+
 ingress:
   enabled: true
   className: kong
-  annotations: {}
+  annotations:
+    konghq.com/plugins: rate-limit-api, cors-plugin
   paths:
     - path: /api/v1/delivery
       pathType: Prefix

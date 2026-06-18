@@ -1,0 +1,38 @@
+## Overrides for local Kubernetes (Kind) deployment
+## Usage: helm upgrade --install food-delivery deployments/helm/ -f deployments/local/values-local.yaml
+
+order-service:
+  image:
+    repository: food-delivery/order-service
+    tag: latest
+    pullPolicy: Never
+
+user-service:
+  image:
+    repository: food-delivery/user-service
+    tag: latest
+    pullPolicy: Never
+
+restaurant-service:
+  image:
+    repository: food-delivery/restaurant-service
+    tag: latest
+    pullPolicy: Never
+
+payment-service:
+  image:
+    repository: food-delivery/payment-service
+    tag: latest
+    pullPolicy: Never
+
+dispatch-service:
+  image:
+    repository: food-delivery/dispatch-service
+    tag: latest
+    pullPolicy: Never
+
+notification-service:
+  image:
+    repository: food-delivery/notification-service
+    tag: latest
+    pullPolicy: Never

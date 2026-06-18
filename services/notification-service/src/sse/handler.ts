@@ -10,6 +10,24 @@ import { SSEManager } from './manager';
 export function registerSSERoutes(app: FastifyInstance, sseManager: SSEManager): void {
   app.get<{ Params: { orderId: string } }>(
     '/api/v1/notifications/orders/:orderId/stream',
+    {
+      schema: {
+        description: 'Subscribe to Server-Sent Events for order updates',
+        tags: ['Notifications'],
+        params: {
+          type: 'object',
+          properties: {
+            orderId: { type: 'string', description: 'UUID of the order' }
+          }
+        },
+        response: {
+          200: {
+            description: 'SSE stream connection established',
+            type: 'string'
+          }
+        }
+      }
+    },
     async (request: FastifyRequest<{ Params: { orderId: string } }>, reply: FastifyReply) => {
       const { orderId } = request.params;
 
@@ -46,10 +64,33 @@ export function registerSSERoutes(app: FastifyInstance, sseManager: SSEManager):
   );
 
   // Monitoring endpoint: active SSE connections count
-  app.get('/api/v1/notifications/stats', async () => ({
-    success: true,
-    data: {
-      active_connections: sseManager.getActiveCount(),
+  app.get(
+    '/api/v1/notifications/stats',
+    {
+      schema: {
+        description: 'Get current SSE connection stats',
+        tags: ['System'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  active_connections: { type: 'number' }
+                }
+              }
+            }
+          }
+        }
+      }
     },
-  }));
+    async () => ({
+      success: true,
+      data: {
+        active_connections: sseManager.getActiveCount(),
+      },
+    })
+  );
 }

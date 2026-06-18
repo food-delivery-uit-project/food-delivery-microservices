@@ -2,137 +2,245 @@
 
 ## 1. Observability Stack
 
-| Component | Tool | Access |
-|-----------|------|--------|
-| Metrics | Prometheus + Grafana | `kubectl port-forward svc/grafana 3000:3000 -n observability` |
-| Logs | Promtail + Loki + Grafana | Same Grafana instance, Loki data source |
-| Traces | OpenTelemetry + Jaeger | `kubectl port-forward svc/jaeger-query 16686:16686 -n observability` |
-| Alerts | Alertmanager | Integrated with Prometheus |
+| Component | Tool | Purpose | Access |
+|-----------|------|---------|--------|
+| Metrics | Prometheus + Grafana | Scrape & visualize metrics from all services | `make observe-grafana` |
+| Logs | Promtail → Loki → Grafana | Aggregate structured JSON logs | Grafana → Explore → Loki |
+| Traces | OTel Agent → OTel Collector → Jaeger | Distributed request tracing | `make observe-jaeger` |
+| Alerts | Alertmanager | Fire alerts to Slack/PagerDuty | Integrated with Prometheus |
 
-## 2. Key Dashboards (Grafana)
+## 2. Quick Start — Access Observability (Local K8s)
 
-### System Overview Dashboard
-- Total request rate (req/sec) across all services
-- Error rate (%) — target: < 1%
-- P50 / P95 / P99 latency — target: P99 < 500ms
-- Active pods per service
+```bash
+# One command to open all tools
+make observe-all
 
-### Per-Service Dashboard
-- HTTP request rate by endpoint
-- Response time histogram
-- Error breakdown by status code
-- CPU & Memory usage
-- JVM metrics (Java): heap usage, GC pauses
-- Go metrics: goroutine count, GC stats
+# Or individually:
+make observe-grafana     # http://localhost:3000 (admin / food-delivery-admin)
+make observe-jaeger      # http://localhost:16686
+make observe-prometheus  # http://localhost:9090
+```
 
-### Kafka Dashboard
-- Messages produced/consumed per topic
-- Consumer group lag (critical metric!)
-- Broker disk usage
-- Partition distribution
+**Quick Start — Docker Compose with Observability:**
 
-### Business Dashboard
-- Orders created per minute
-- Order completion rate (delivered / total)
-- Average delivery time (minutes)
-- Payment success/failure ratio
-- Top restaurants by order count
+```bash
+docker compose --profile observability up -d
+# Grafana:    http://localhost:3000  (admin/admin)
+# Jaeger:     http://localhost:16686
+# Prometheus: http://localhost:9090
+```
 
-## 3. SLI/SLO Definitions
+### Verify Stack is Running
 
-| Service | SLI (Indicator) | SLO (Target) |
-|---------|-----------------|---------------|
-| Kong Gateway | Request success rate | 99.5% |
+```bash
+# K8s
+make observability-status
+
+# Should show:
+# kube-prometheus-stack-prometheus  Running
+# alertmanager-kube-prometheus...   Running
+# grafana                           Running
+# loki-0                            Running
+# loki-promtail-xxxx                Running
+# jaeger-all-in-one-xxxx            Running
+# otel-collector-xxxx               Running
+```
+
+## 3. Grafana Dashboards
+
+After opening Grafana (`make observe-grafana`):
+
+### Pre-configured Dashboards
+
+| Dashboard | Description | Path in Grafana |
+|-----------|-------------|-----------------|
+| Food Delivery Overview | Request rate, error rate, latency per service | Food Delivery / Overview |
+| Kubernetes Cluster | Node CPU, Memory, Pod count | General / Kubernetes Cluster |
+| JVM Micrometer | Java heap, GC, threads | General / JVM Micrometer |
+| Kafka Overview | Consumer lag, throughput | General / Kafka |
+
+### Browse Logs (Loki)
+
+```
+# In Grafana → Explore → Select "Loki" datasource
+
+# All logs from order-service
+{service="order-service"}
+
+# Error logs only (level=error)
+{service="order-service"} | json | level = "error"
+
+# Trace a specific request end-to-end
+{service=~".+"} | json | trace_id = "YOUR_TRACE_ID"
+
+# Find logs for a specific order
+{service="order-service"} | json | order_id = "SOME-ORDER-UUID"
+
+# High latency requests (> 500ms)
+{service=~".+"} | json | duration_ms > 500
+```
+
+## 4. Jaeger — Distributed Tracing
+
+### How to Use
+
+1. Open Jaeger (`make observe-jaeger` → http://localhost:16686)
+2. **Select Service** (e.g., `order-service`)
+3. **Search** by operation, time range, or minimum duration
+4. Click a trace → view the full span waterfall across services
+
+### Example: Trace an Order Creation
+
+After running the E2E test, search in Jaeger:
+- Service: `order-service`
+- Operation: `POST /api/v1/orders`
+
+You will see spans across:
+```
+order-service  → POST /api/v1/orders              (HTTP handler)
+  ↳ order-service → validateRestaurant            (REST call)
+    ↳ restaurant-service → GET /api/v1/restaurants/{id}
+  ↳ order-service → save Order                    (DB write)
+  ↳ order-service → publish to Kafka              (Kafka produce)
+    ↳ payment-service (async consumer)
+```
+
+### Correlation: Logs + Traces
+
+In Grafana → Explore → Loki, when you see a `trace_id` in a log line, click the **Jaeger link** to jump directly to the trace. This is configured automatically via the Loki datasource's derived fields.
+
+## 5. Prometheus — Metrics & Alerts
+
+### Key PromQL Queries
+
+```promql
+# --- HTTP Request Rate (req/s) ---
+sum by(service) (rate(http_server_requests_seconds_count{namespace="food-app"}[1m]))
+
+# --- HTTP Error Rate (%) ---
+sum by(service) (rate(http_server_requests_seconds_count{namespace="food-app", status=~"5.."}[5m]))
+/
+sum by(service) (rate(http_server_requests_seconds_count{namespace="food-app"}[5m]))
+
+# --- P99 Latency ---
+histogram_quantile(0.99,
+  sum by(service, le) (
+    rate(http_server_requests_seconds_bucket{namespace="food-app"}[5m])
+  )
+)
+
+# --- Order Creation Rate ---
+rate(http_server_requests_seconds_count{
+  service="order-service",
+  uri="/api/v1/orders",
+  method="POST",
+  status="201"
+}[5m])
+
+# --- JVM Heap Usage ---
+jvm_memory_used_bytes{area="heap", service="order-service"}
+/
+jvm_memory_max_bytes{area="heap", service="order-service"}
+
+# --- Kafka Consumer Lag ---
+kafka_consumergroup_lag_sum
+
+# --- Pod Restart Count ---
+rate(kube_pod_container_status_restarts_total{namespace="food-app"}[5m]) * 60
+```
+
+## 6. SLI/SLO Definitions
+
+| Service | SLI | SLO Target |
+|---------|-----|-----------|
+| Kong Gateway | Request success rate | ≥ 99.5% |
+| Order Service | POST /orders success rate | ≥ 99% |
 | Order Service | P99 latency (POST /orders) | < 500ms |
-| Order Service | Order creation success rate | > 99% |
-| Payment Service | Payment processing success rate | > 98% |
-| Dispatch Service | Driver matching success rate | > 95% |
-| Dispatch Service | GPS update latency | < 100ms |
-| All Services | Pod restart count per hour | < 2 |
+| Payment Service | Payment success rate | ≥ 98% |
+| Dispatch Service | Driver match success rate | ≥ 95% |
+| All Services | Pod restart count/hour | < 2 |
 | Kafka | Consumer lag (messages) | < 1000 |
 
-## 4. Alert Rules
+## 7. Alert Rules
 
-### Critical (PagerDuty / Immediate action)
+Alerts are defined in `deployments/observability/prometheus/alert-rules.yaml`:
 
-| Alert | Condition | Action |
+### Critical (Immediate Action)
+
+| Alert | Condition | Impact |
 |-------|-----------|--------|
-| Service Down | Pod restart > 3 in 5min | Check logs, rollback |
-| Error Rate Spike | HTTP 5xx > 5% for 2min | Check Jaeger traces |
-| Kafka Consumer Lag | Lag > 10000 for 5min | Scale consumers |
-| DB Connection Pool Exhausted | Active connections = max | Check for connection leaks |
+| `ServiceDown` | Pod down > 1min | Service unavailable |
+| `PodCrashLooping` | Restart rate > 3/5min | Service instability |
+| `HighErrorRate` | HTTP 5xx > 5% for 2min | User-facing errors |
+| `KafkaConsumerGroupLag` | Lag > 10,000 for 5min | Event processing delay |
+| `OrderCreationSLOViolation` | Success rate < 99% | Core flow broken |
+| `PaymentSuccessRateSLOViolation` | Success rate < 98% | Revenue impact |
 
-### Warning (Slack notification)
+### Warning
 
-| Alert | Condition | Action |
-|-------|-----------|--------|
-| High Latency | P99 > 1s for 5min | Investigate slow endpoints |
-| High Memory | Memory > 85% limit | Consider scaling |
-| Disk Usage | PV usage > 80% | Clean up or expand |
-| Certificate Expiry | TLS cert expires in < 14 days | Renew certificate |
+| Alert | Condition |
+|-------|-----------|
+| `HighLatencyP99` | P99 > 1s for 5min |
+| `HighMemoryUsage` | Memory > 85% limit |
+| `KafkaConsumerGroupLagWarning` | Lag > 1,000 |
+| `DeploymentReplicasMismatch` | Available < Desired |
 
-## 5. Structured Logging Standard
+## 8. Structured Logging
 
-All services MUST output logs in this JSON format:
+All services output JSON structured logs. Example from `order-service`:
 
 ```json
 {
-  "timestamp": "2026-04-22T08:00:00Z",
+  "timestamp": "2026-06-14T01:30:00Z",
   "level": "INFO",
   "service": "order-service",
-  "trace_id": "abc123def456",
-  "span_id": "span789",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
   "message": "Order created successfully",
-  "order_id": "ord-uuid-123",
-  "customer_id": "usr-uuid-456",
+  "order_id": "836bc40f-680e-4825-99aa-9713ebd189b0",
+  "customer_id": "b57b6258-56d0-404f-9ab0-38338b7b5e98",
   "duration_ms": 45
 }
 ```
 
-### Required Fields
+### Loki Label Strategy
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `timestamp` | ISO 8601 | When the log was created |
-| `level` | string | ERROR, WARN, INFO, DEBUG |
-| `service` | string | Service name |
-| `trace_id` | string | OpenTelemetry trace ID (for cross-service correlation) |
-| `message` | string | Human-readable description |
+| Label | Source | Example |
+|-------|--------|---------|
+| `service` | Container name (strip `fd-`) | `order-service` |
+| `level` | JSON field | `INFO`, `ERROR` |
+| `container` | Docker container name | `fd-order-service` |
+| `namespace` | K8s namespace | `food-app` |
 
-### Searching Logs in Grafana (Loki)
+## 9. OpenTelemetry Instrumentation
 
-```
-# All logs from order-service
-{service="order-service"}
+### Java Services (order, payment, user, restaurant)
 
-# Error logs only
-{service="order-service"} |= "ERROR"
-
-# Find all logs for a specific trace
-{service=~".+"} |= "abc123def456"
-
-# Find logs for a specific order
-{service="order-service"} | json | order_id = "ord-uuid-123"
+The OTel Java Agent is bundled in the Docker image via:
+```dockerfile
+ENV JAVA_TOOL_OPTIONS="-javaagent:/app/otel-agent.jar"
 ```
 
-## 6. Distributed Tracing (Jaeger)
-
-### How Traces Work
-
-1. Customer request hits **Kong Gateway** → generates `trace_id`
-2. Kong passes `trace_id` via `traceparent` header to downstream service
-3. Each service propagates `trace_id` to:
-   - Internal REST calls (via HTTP header)
-   - Kafka messages (via message header)
-   - Log entries (via MDC/context)
-4. Jaeger UI shows complete request flow across all services
-
-### Jaeger Usage
-
+Key env vars (configured in Helm `values.yaml`):
+```yaml
+OTEL_SERVICE_NAME: order-service
+OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4317
+OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=k8s-local"
 ```
-1. Open Jaeger UI (localhost:16686)
-2. Select service (e.g., "order-service")
-3. Search by trace ID, operation, or time range
-4. Click on a trace to see span waterfall
-5. Identify bottlenecks (which span took longest?)
-```
+
+The agent automatically instruments:
+- Spring MVC HTTP handlers
+- Spring Data JPA queries
+- Spring Kafka producer/consumer
+- Outbound HTTP calls (RestTemplate/WebClient)
+
+### Go Service (dispatch-service)
+
+Manual instrumentation via `go.opentelemetry.io/otel`. Traces are created for:
+- Kafka consumer handlers
+- Redis geo queries
+- HTTP handler endpoints
+
+### Trace Context Propagation
+
+All Kafka messages include trace context in message headers (`traceparent`), enabling cross-service trace correlation even across async event boundaries.

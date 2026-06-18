@@ -24,7 +24,7 @@ public enum OrderStatus {
             case CREATED -> target == PAYMENT_PENDING || target == CANCELLED;
             case PAYMENT_PENDING -> target == PAID || target == CANCELLED;
             case PAID -> target == RESTAURANT_ACCEPTED || target == CANCELLED;
-            case RESTAURANT_ACCEPTED -> target == PREPARING;
+            case RESTAURANT_ACCEPTED -> target == PREPARING || target == READY_FOR_PICKUP;
             case PREPARING -> target == READY_FOR_PICKUP;
             case READY_FOR_PICKUP -> target == DRIVER_ASSIGNED;
             case DRIVER_ASSIGNED -> target == PICKED_UP;

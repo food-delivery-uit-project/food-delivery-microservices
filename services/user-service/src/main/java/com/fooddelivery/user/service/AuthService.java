@@ -12,6 +12,10 @@ import com.fooddelivery.user.model.UserRole;
 import com.fooddelivery.user.repository.DriverProfileRepository;
 import com.fooddelivery.user.repository.UserRepository;
 import com.fooddelivery.user.security.JwtTokenProvider;
+import com.fooddelivery.user.outbox.SpringDataOutboxRepository;
+import com.fooddelivery.user.outbox.OutboxEventJpaEntity;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +28,21 @@ public class AuthService {
     private final DriverProfileRepository driverProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final SpringDataOutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     public AuthService(UserRepository userRepository,
                        DriverProfileRepository driverProfileRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtTokenProvider jwtTokenProvider) {
+                       JwtTokenProvider jwtTokenProvider,
+                       SpringDataOutboxRepository outboxRepository,
+                       ObjectMapper objectMapper) {
         this.userRepository = userRepository;
         this.driverProfileRepository = driverProfileRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -62,6 +72,27 @@ public class AuthService {
                     .avgRating(java.math.BigDecimal.valueOf(5.0))
                     .build();
             driverProfileRepository.save(driverProfile);
+        }
+
+        // Transactional Outbox: Save event to outbox table
+        try {
+            OutboxEventJpaEntity event = new OutboxEventJpaEntity();
+            event.setId(UUID.randomUUID());
+            event.setAggregateType("User");
+            event.setAggregateId(savedUser.getId());
+            event.setEventType("UserRegisteredEvent");
+            event.setPublished(false);
+            event.setCreatedAt(java.time.Instant.now());
+            
+            Map<String, Object> payload = Map.of(
+                "userId", savedUser.getId().toString(),
+                "email", savedUser.getEmail(),
+                "role", savedUser.getRole().name()
+            );
+            event.setPayload(payload);
+            outboxRepository.save(event);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save outbox event", e);
         }
     }
 

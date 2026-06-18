@@ -28,8 +28,44 @@ public class Order {
     private Instant createdAt;
     private Instant updatedAt;
 
-    // Private constructor - use factory method
+    // Private constructor - use factory methods
     private Order() {}
+
+    /**
+     * Factory method to reconstitute an order from persistence.
+     * Used by the JPA adapter when loading from database.
+     */
+    public static Order reconstitute(
+            UUID id,
+            UUID customerId,
+            UUID restaurantId,
+            List<OrderItem> items,
+            DeliveryAddress deliveryAddress,
+            Money subtotal,
+            Money deliveryFee,
+            Money totalAmount,
+            OrderStatus status,
+            UUID driverId,
+            String specialInstructions,
+            Instant createdAt,
+            Instant updatedAt) {
+
+        Order order = new Order();
+        order.id = id;
+        order.customerId = customerId;
+        order.restaurantId = restaurantId;
+        order.items = List.copyOf(items);
+        order.deliveryAddress = deliveryAddress;
+        order.subtotal = subtotal;
+        order.deliveryFee = deliveryFee;
+        order.totalAmount = totalAmount;
+        order.status = status;
+        order.driverId = driverId;
+        order.specialInstructions = specialInstructions;
+        order.createdAt = createdAt;
+        order.updatedAt = updatedAt;
+        return order;
+    }
 
     /**
      * Factory method to create a new order.
@@ -50,7 +86,14 @@ public class Order {
         order.specialInstructions = specialInstructions;
         order.status = OrderStatus.CREATED;
         order.subtotal = OrderItem.calculateSubtotal(items);
-        order.deliveryFee = Money.of(BigDecimal.valueOf(15000), "VND"); // TODO: calculate based on distance
+        
+        // Mock distance calculation (in a real system, distance is calculated between restaurant and deliveryAddress)
+        double mockDistanceKm = 3.5;
+        long baseFee = 15000;
+        long feePerKm = 5000;
+        long calculatedFee = baseFee + (long)(mockDistanceKm * feePerKm);
+        
+        order.deliveryFee = Money.of(BigDecimal.valueOf(calculatedFee), "VND");
         order.totalAmount = order.subtotal.add(order.deliveryFee);
         order.createdAt = Instant.now();
         order.updatedAt = Instant.now();

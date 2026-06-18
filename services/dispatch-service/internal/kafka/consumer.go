@@ -6,6 +6,8 @@ import (
 	"log/slog"
 
 	kafkago "github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 const restaurantEventsTopic = "restaurant-events"
@@ -60,6 +62,13 @@ func (c *Consumer) handleMessage(ctx context.Context, msg kafkago.Message) {
 		slog.Error("Failed to unmarshal event", "error", err, "offset", msg.Offset)
 		return
 	}
+
+	// Extract OpenTelemetry context from Kafka headers
+	carrier := propagation.MapCarrier{}
+	for _, h := range msg.Headers {
+		carrier[h.Key] = string(h.Value)
+	}
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
 	slog.Info("Received event", "type", event.Type, "event_id", event.ID)
 

@@ -1,7 +1,8 @@
 # Kong Ingress Controller Helm values
-gateway:
-  service:
-    type: NodePort
+proxy:
+  type: NodePort
+  http:
+    nodePort: 30080
   env:
     plugins: "bundled,prometheus,opentelemetry"
   resources:

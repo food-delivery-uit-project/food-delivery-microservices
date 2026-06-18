@@ -8,7 +8,7 @@ public class CloudEvent<T> {
     private String specversion = "1.0";
     private String type;
     private String datacontenttype = "application/json";
-    private Instant time;
+    private String time;
     private T data;
 
     public CloudEvent() {}
@@ -17,7 +17,7 @@ public class CloudEvent<T> {
         this.id = id;
         this.source = source;
         this.type = type;
-        this.time = Instant.now();
+        this.time = Instant.now().toString();
         this.data = data;
     }
 
@@ -61,11 +61,11 @@ public class CloudEvent<T> {
         this.datacontenttype = datacontenttype;
     }
 
-    public Instant getTime() {
+    public String getTime() {
         return time;
     }
 
-    public void setTime(Instant time) {
+    public void setTime(String time) {
         this.time = time;
     }
 

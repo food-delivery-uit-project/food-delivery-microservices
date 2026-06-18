@@ -17,6 +17,7 @@ const (
 	driverKeyPrefix    = "driver:"
 	deliveryKeyPrefix  = "delivery:"
 	dispatchKeyPrefix  = "dispatch:order:"
+	OutboxStreamKey    = "dispatch_outbox_events"
 	dispatchAssignTTL  = 1 * time.Hour
 )
 
@@ -41,6 +42,11 @@ func NewRedisDriverRepository(addr string) *RedisDriverRepository {
 // NewRedisDriverRepositoryWithClient creates a repository with a pre-configured client (for testing).
 func NewRedisDriverRepositoryWithClient(client *redis.Client) *RedisDriverRepository {
 	return &RedisDriverRepository{client: client}
+}
+
+// GetClient returns the underlying Redis client for use by other components like the Outbox Relay.
+func (r *RedisDriverRepository) GetClient() *redis.Client {
+	return r.client
 }
 
 // Ping verifies the Redis connection is alive (used by readiness probe).
@@ -200,6 +206,22 @@ func (r *RedisDriverRepository) GetDeliveryStatus(ctx context.Context, orderID s
 func (r *RedisDriverRepository) SetDispatchAssignment(ctx context.Context, orderID, driverID string) error {
 	key := dispatchKeyPrefix + orderID
 	return r.client.Set(ctx, key, driverID, dispatchAssignTTL).Err()
+}
+
+	// SetDispatchAssignmentWithOutbox records the dispatch assignment and appends an event to the Redis Stream atomically.
+func (r *RedisDriverRepository) SetDispatchAssignmentWithOutbox(ctx context.Context, orderID, driverID, eventPayload, traceparent string) error {
+	script := `
+		-- Set the dispatch assignment with TTL
+		redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+		-- Add the outbox event to the stream
+		redis.call('XADD', KEYS[2], '*', 'payload', ARGV[3], 'traceparent', ARGV[4])
+		return 1
+	`
+	key := dispatchKeyPrefix + orderID
+	ttlSeconds := int(dispatchAssignTTL.Seconds())
+
+	_, err := r.client.Eval(ctx, script, []string{key, OutboxStreamKey}, driverID, ttlSeconds, eventPayload, traceparent).Result()
+	return err
 }
 
 // GetDispatchAssignment returns the driver ID assigned to an order.
