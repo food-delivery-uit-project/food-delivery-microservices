@@ -1,14 +1,11 @@
 image:
   repository: ghcr.io/food-delivery-uit-project/restaurant-service
-  tag: bbac661258bf8ef919c36c049525444f6f925a18
+  tag: f2a9e0ff541358218d7a1c31feb50dd54505286a
   pullPolicy: IfNotPresent
-
 replicaCount: 1
-
 service:
   type: ClusterIP
   port: 8080
-
 resources:
   requests:
     cpu: 200m
@@ -16,24 +13,20 @@ resources:
   limits:
     cpu: 2000m
     memory: 512Mi
-
 autoscaling:
   enabled: true
   minReplicas: 1
   maxReplicas: 3
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
-
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
-
 serviceMonitor:
   enabled: true
   path: /actuator/prometheus
   interval: 15s
   scrapeTimeout: 10s
-
 env:
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql.databases.svc:5432/restaurant_db
   SPRING_DATASOURCE_USERNAME: postgres
@@ -43,12 +36,10 @@ env:
   OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=k8s-local"
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
   MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
-
 secretEnv:
   SPRING_DATASOURCE_PASSWORD:
     secretName: db-credentials
     key: POSTGRES_PASSWORD
-
 probes:
   liveness:
     path: /actuator/health/liveness
@@ -60,7 +51,6 @@ probes:
     initialDelaySeconds: 240
     periodSeconds: 10
     timeoutSeconds: 5
-
 ingress:
   enabled: true
   className: kong
