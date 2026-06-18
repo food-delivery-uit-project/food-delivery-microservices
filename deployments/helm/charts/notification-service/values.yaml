@@ -1,14 +1,11 @@
 image:
   repository: ghcr.io/food-delivery-uit-project/notification-service
-  tag: 017a0760c717f1713a6dbc504f22949640e515cf
+  tag: f2a9e0ff541358218d7a1c31feb50dd54505286a
   pullPolicy: IfNotPresent
-
 replicaCount: 1
-
 service:
   type: ClusterIP
   port: 8080
-
 resources:
   requests:
     cpu: 200m
@@ -16,25 +13,21 @@ resources:
   limits:
     cpu: 500m
     memory: 256Mi
-
 autoscaling:
   enabled: true
   minReplicas: 1
   maxReplicas: 3
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
-
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
-
 ## Node.js service — expose /metrics (prom-client)
 serviceMonitor:
   enabled: true
   path: /metrics
   interval: 15s
   scrapeTimeout: 10s
-
 env:
   PORT: "8080"
   NODE_ENV: "production"
@@ -43,7 +36,6 @@ env:
   OTEL_SERVICE_NAME: notification-service
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4317
   OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=k8s-local"
-
 probes:
   liveness:
     path: /health/live
@@ -55,7 +47,6 @@ probes:
     initialDelaySeconds: 240
     periodSeconds: 10
     timeoutSeconds: 5
-
 ingress:
   enabled: true
   className: kong
