@@ -22,12 +22,16 @@ NAMESPACES = ["food-app", "databases", "kafka", "observability", "argocd"]
 REQUIRED_TOOLS = ["docker", "kind", "kubectl", "helm"]
 
 
-def run(cmd: str, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
+def run(cmd: str, check: bool = True, capture: bool = False, timeout: int = None) -> subprocess.CompletedProcess:
     """Execute a shell command."""
     print(f"  → {cmd}")
-    return subprocess.run(
-        cmd, shell=True, check=check, capture_output=capture, text=True
-    )
+    try:
+        return subprocess.run(
+            cmd, shell=True, check=check, capture_output=capture, text=True, timeout=timeout
+        )
+    except subprocess.TimeoutExpired as e:
+        print(f"⚠️ Command timed out after {timeout}s: {cmd}")
+        return subprocess.CompletedProcess(args=cmd, returncode=1, stdout="", stderr=str(e))
 
 
 def check_prerequisites() -> None:
@@ -110,6 +114,7 @@ def install_infrastructure() -> None:
         "--set primary.persistence.size=1Gi "
         "--wait --timeout 120s",
         check=False,
+        timeout=150,
     )
 
     print("\n🔴 Installing Redis...")
@@ -121,6 +126,7 @@ def install_infrastructure() -> None:
         "--set replica.replicaCount=0 "
         "--wait --timeout 120s",
         check=False,
+        timeout=150,
     )
 
     print("\n📨 Installing Kafka (Strimzi Operator)...")
@@ -130,6 +136,7 @@ def install_infrastructure() -> None:
         "-n kafka "
         "--wait --timeout 180s",
         check=False,
+        timeout=210,
     )
     # Wait for operator to be ready, then apply Kafka cluster
     print("  Waiting for Strimzi operator to be ready...")
@@ -139,13 +146,15 @@ def install_infrastructure() -> None:
 
     print("\n🦍 Installing Kong Ingress Controller...")
     run(
-        "helm upgrade --install kong kong/ingress "
+        "helm upgrade --install kong kong/kong "
         "-n food-app "
-        "--set gateway.service.type=NodePort "
-        "--set gateway.service.nodePorts.http=30080 "
+        "-f deployments/infrastructure/kong/values.yaml "
         "--wait --timeout 120s",
         check=False,
+        timeout=150,
     )
+    run("kubectl apply -f deployments/infrastructure/kong/plugins.yaml -n food-app", check=False)
+    run("kubectl apply -f deployments/infrastructure/security/network-policies.yaml", check=False)
 
     print("✅ Infrastructure installed.")
 
@@ -162,6 +171,7 @@ def install_observability() -> None:
         "-f deployments/observability/prometheus/values.yaml "
         "--wait --timeout 300s",
         check=False,
+        timeout=330,
     )
 
     # 2. Apply custom PrometheusRules (food-delivery alerts)
@@ -176,6 +186,7 @@ def install_observability() -> None:
         "-f deployments/observability/loki/values.yaml "
         "--wait --timeout 180s",
         check=False,
+        timeout=210,
     )
 
     # 4. Jaeger (all-in-one)
@@ -186,6 +197,7 @@ def install_observability() -> None:
         "-f deployments/observability/jaeger/values.yaml "
         "--wait --timeout 120s",
         check=False,
+        timeout=150,
     )
 
     # 5. Grafana
@@ -196,6 +208,7 @@ def install_observability() -> None:
         "-f deployments/observability/grafana/values.yaml "
         "--wait --timeout 120s",
         check=False,
+        timeout=150,
     )
 
     # 6. OTel Collector
@@ -217,7 +230,7 @@ def create_databases() -> None:
     for db in dbs:
         run(
             f"kubectl exec postgresql-0 -n databases -- "
-            f"psql -U postgres -c \"CREATE DATABASE {db};\"",
+            f"env PGPASSWORD=postgres psql -U postgres -c \"CREATE DATABASE {db};\"",
             check=False,
         )
     print("✅ Databases created.")
@@ -258,6 +271,7 @@ def print_status() -> None:
     print("  Prometheus:     make observe-prometheus (localhost:9090)")
     print("  Loki (Grafana): Use Grafana → Explore → Loki datasource")
     print("\n🚀 Next steps:")
+    print("  make kind-load                  # Build and load local images into cluster")
     print("  make seed                       # Load sample data via docker-compose")
     print("  make helm-deploy                # Deploy all app services")
     print("  make observe-all                # Port-forward all observability tools")

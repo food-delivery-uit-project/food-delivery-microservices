@@ -80,7 +80,7 @@ dashboardProviders:
 
 ## Import community dashboards
 dashboards:
-  default:
+  food-delivery:
     kubernetes-cluster:
       gnetId: 7249
       revision: 1

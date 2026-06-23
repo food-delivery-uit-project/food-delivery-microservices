@@ -28,6 +28,9 @@ spec:
       limits:
         memory: 1Gi
         cpu: 500m
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
   zookeeper:
     replicas: 1
     storage:

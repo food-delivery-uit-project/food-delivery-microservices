@@ -48,3 +48,46 @@ config:
   credentials: true
   max_age: 3600
 plugin: cors
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-to-headers
+  namespace: food-app
+config:
+  access:
+    - |
+      local auth_header = kong.request.get_header("Authorization")
+      kong.service.request.clear_header("X-User-Id")
+      kong.service.request.clear_header("X-User-Role")
+      if auth_header then
+        local token = string.match(auth_header, "Bearer%s+(.+)")
+        if token then
+          local parts = {}
+          for part in string.gmatch(token, "[^%.]+") do
+            table.insert(parts, part)
+          end
+          if #parts >= 2 then
+            local payload_b64 = parts[2]
+            local remainder = #payload_b64 % 4
+            if remainder > 0 then
+              payload_b64 = payload_b64 .. string.rep("=", 4 - remainder)
+            end
+            payload_b64 = string.gsub(payload_b64, "-", "+")
+            payload_b64 = string.gsub(payload_b64, "_", "/")
+            
+            local payload_str = ngx.decode_base64(payload_b64)
+            if payload_str then
+              local sub = string.match(payload_str, '"sub"%s*:%s*"([^"]+)"')
+              local role = string.match(payload_str, '"role"%s*:%s*"([^"]+)"')
+              if sub then
+                kong.service.request.set_header("X-User-Id", sub)
+              end
+              if role then
+                kong.service.request.set_header("X-User-Role", role)
+              end
+            end
+          end
+        end
+      end
+plugin: pre-function

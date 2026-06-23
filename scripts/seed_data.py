@@ -165,16 +165,11 @@ def api_call(method: str, path: str, data: dict = None, token: str = None) -> di
     # Route directly to the respective service ports
     if path.startswith("/api/v1/auth") or path.startswith("/api/v1/users"):
         url = f"{USER_SERVICE_URL}{path}"
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
     else:
         url = f"{RESTAURANT_SERVICE_URL}{path}"
-        if token:
-            # Emulate Gateway headers for Restaurant Service
-            user_info = get_user_info(token)
-            if user_info:
-                headers["X-User-Id"] = user_info.get("id")
-                headers["X-User-Role"] = user_info.get("role")
+        
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
     body = json.dumps(data).encode("utf-8") if data else None
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
