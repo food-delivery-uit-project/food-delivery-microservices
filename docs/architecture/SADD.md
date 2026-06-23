@@ -759,7 +759,7 @@ SET dispatch:order:{order_id} {driver_id} EX 3600
 
 - **Tech:** Node.js (TypeScript)
 - **Internal Architecture:** Simple Modular
-- **Language:** Go
+- **Language:** Node.js (TypeScript)
 
 ### Directory Structure
 

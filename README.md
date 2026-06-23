@@ -94,7 +94,7 @@ docker compose --profile observability up -d
 
 # Access:
 #   Services:   http://localhost:8001-8006
-#   Grafana:    http://localhost:3000  (admin/admin)
+#   Grafana:    http://localhost:3001  (admin/admin)
 #   Jaeger:     http://localhost:16686
 #   Prometheus: http://localhost:9090
 ```
@@ -139,7 +139,7 @@ make helm-deploy
 make observe-all
 
 # Or individual tools:
-make observe-grafana     # http://localhost:3000  (admin / food-delivery-admin)
+make observe-grafana     # http://localhost:3001  (admin / food-delivery-admin)
 make observe-jaeger      # http://localhost:16686
 make observe-prometheus  # http://localhost:9090
 ```
@@ -175,7 +175,7 @@ make deploy-observability # Deploy/update observability stack
 
 # Observability
 make observe-all          # Port-forward ALL tools (Grafana + Jaeger + Prometheus)
-make observe-grafana      # → localhost:3000
+make observe-grafana      # → localhost:3001
 make observe-jaeger       # → localhost:16686
 make observe-prometheus   # → localhost:9090
 make observability-status # Show observability pods and configs
