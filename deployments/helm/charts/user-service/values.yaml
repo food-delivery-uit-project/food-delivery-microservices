@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/food-delivery-uit-project/user-service
-  tag: f2a9e0ff541358218d7a1c31feb50dd54505286a
+  tag: c73aad6e789fb7488027a65ed4501a6156fc71e8
   pullPolicy: IfNotPresent
 replicaCount: 1
 service:
