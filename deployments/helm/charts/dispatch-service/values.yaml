@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/food-delivery-uit-project/dispatch-service
-  tag: f2a9e0ff541358218d7a1c31feb50dd54505286a
+  tag: 745568b88696fa19c0f3d7d0dc1b4d44f84ca817
   pullPolicy: IfNotPresent
 replicaCount: 1
 service:
