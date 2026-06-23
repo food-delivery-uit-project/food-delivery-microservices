@@ -93,7 +93,7 @@ management:
 
 logging:
   pattern:
-    console: "%msg%n"
+    console: "%msg %throwable%n"
   level:
     root: INFO
     com.fooddelivery.order: DEBUG

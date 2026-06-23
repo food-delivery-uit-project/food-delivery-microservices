@@ -108,13 +108,13 @@ observability-status: ## Show status of all observability pods
 # Observability Port-Forwarding (Access UIs locally)
 # ============================================================================
 
-observe-grafana: ## Port-forward Grafana UI → localhost:3000 (admin/food-delivery-admin)
-	@echo "🌐 Grafana → http://localhost:3000  (admin / food-delivery-admin)"
-	kubectl port-forward svc/grafana 3000:3000 -n observability
+observe-grafana: ## Port-forward Grafana UI → localhost:3001 (admin/food-delivery-admin)
+	@echo "🌐 Grafana → http://localhost:3001  (admin / food-delivery-admin)"
+	kubectl port-forward svc/grafana 3001:3000 -n observability
 
 observe-jaeger: ## Port-forward Jaeger UI → localhost:16686
 	@echo "🌐 Jaeger → http://localhost:16686"
-	kubectl port-forward svc/jaeger-all-in-one-query 16686:16686 -n observability
+	kubectl port-forward svc/jaeger 16686:16686 -n observability
 
 observe-prometheus: ## Port-forward Prometheus UI → localhost:9090
 	@echo "🌐 Prometheus → http://localhost:9090"
@@ -126,12 +126,12 @@ observe-loki: ## Port-forward Loki → localhost:3100 (access via Grafana)
 
 observe-all: ## Port-forward ALL observability tools (runs in background)
 	@echo "🚀 Starting all port-forwards..."
-	@kubectl port-forward svc/grafana 3000:3000 -n observability &
-	@kubectl port-forward svc/jaeger-all-in-one-query 16686:16686 -n observability &
+	@kubectl port-forward svc/grafana 3001:3000 -n observability &
+	@kubectl port-forward svc/jaeger 16686:16686 -n observability &
 	@kubectl port-forward svc/kube-prometheus-stack-prometheus 9090:9090 -n observability &
 	@echo ""
 	@echo "✅ Access:"
-	@echo "  Grafana:    http://localhost:3000  (admin / food-delivery-admin)"
+	@echo "  Grafana:    http://localhost:3001  (admin / food-delivery-admin)"
 	@echo "  Jaeger:     http://localhost:16686"
 	@echo "  Prometheus: http://localhost:9090"
 	@echo ""

@@ -51,7 +51,7 @@ ingress:
   enabled: true
   className: kong
   annotations:
-    konghq.com/plugins: rate-limit-api, cors-plugin
+    konghq.com/plugins: rate-limit-api, cors-plugin, jwt-to-headers
   paths:
     - path: /api/v1/notifications
       pathType: Prefix

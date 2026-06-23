@@ -50,7 +50,7 @@ data:
     exporters:
       ## Export traces to Jaeger
       otlp/jaeger:
-        endpoint: jaeger-all-in-one.observability.svc:4317
+        endpoint: jaeger.observability.svc:4317
         tls:
           insecure: true
 
